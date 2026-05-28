@@ -47,12 +47,11 @@ export default function EventDetailScreen({ event, onBack }) {
             await supabase.from('event_signups').delete()
                 .eq('event_id', event.id).eq('user_id', userId);
             setSignedUp(false);
-            setAttendees(prev => prev.filter(a => a.user_id !== userId));
         } else {
             await supabase.from('event_signups').insert({ event_id: event.id, user_id: userId });
             setSignedUp(true);
-            fetchAttendees();
         }
+        fetchAttendees();
     }
 
     function formatDate(dateStr) {
