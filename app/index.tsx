@@ -1,5 +1,5 @@
-import AuthScreen from '../screens/AuthScreen';
+import EventsScreen from '../screens/EventsScreen';
 
 export default function App() {
-  return <AuthScreen />;
+  return <EventsScreen />;
 }
