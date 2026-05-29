@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity,
-    StyleSheet, ActivityIndicator, Alert
+    StyleSheet, ActivityIndicator, Alert, Image 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -68,9 +68,18 @@ export default function EventDetailScreen({ event, onBack }) {
             </TouchableOpacity>
 
             <ScrollView>
-                <View style={styles.imagePlaceholder}>
-                    <Text style={styles.imageText}>📅</Text>
-                </View>
+                {event.image_url ? (
+                    <Image 
+                        source={{ uri: event.image_url }} 
+                        style={styles.image}
+                        resizeMode="cover"
+                    />
+                ) : (
+                    <View style={styles.imagePlaceholder}>
+                        <Text style={styles.imageText}>📅</Text>
+                    </View>
+                )}
+                
 
                 <View style={styles.content}>
                     <Text style={styles.title}>{event.title}</Text>
@@ -112,6 +121,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#fff' },
     backBtn: { padding: 16 },
     backText: { color: '#2563eb', fontSize: 16 },
+    image: { height: 200, width: '100%' },
     imagePlaceholder: { backgroundColor: '#e5e7eb', height: 200, justifyContent: 'center', alignItems: 'center' },
     imageText: { fontSize: 60 },
     content: { padding: 16 },

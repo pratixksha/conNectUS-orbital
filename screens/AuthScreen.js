@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import { router } from 'expo-router';
 
 const INTERESTS = [
   'AI & Tech', 'Badminton', 'Startups', 'Supper runs',
@@ -133,7 +134,8 @@ export default function AuthScreen({ navigation = null }) {
     if (error) {
       Alert.alert('Login failed', error.message);
     } else {
-      console.log('logged in!');
+      //console.log('logged in!');
+      router.push('/events');
     }
   }
 
