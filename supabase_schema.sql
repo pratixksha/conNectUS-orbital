@@ -11,8 +11,8 @@ create table profiles (
 --Allow users to read/write only their own profile
 alter table profiles enable row level security;
 
-create policy "Users can view own profile"
-  on profiles for select using (auth.uid() = id);
+create policy "Users can view all profiles"
+  on profiles for select using (true);
 
 create policy "Users can insert own profile"
   on profiles for insert with check (auth.uid() = id);
@@ -45,3 +45,10 @@ create policy "Anyone can view events" on events for select using (true);
 create policy "Users can sign up for events" on event_signups for insert with check (auth.uid() = user_id);
 create policy "Users can withdraw from events" on event_signups for delete using (auth.uid() = user_id);
 create policy "Users can view signups" on event_signups for select using (true);
+
+alter table events add column image_url text;
+
+-- Add foreign key for attendees
+alter table event_signups
+add constraint event_signups_user_fkey
+foreign key (user_id) references profiles(id) on delete cascade;
