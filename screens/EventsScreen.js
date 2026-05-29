@@ -5,23 +5,16 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import EventDetailScreen from './EventDetailScreen';
 
 export default function EventsScreen() {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [signedUp, setSignedUp] = useState({});
-    const [userId, setUserId] = useState(null);
+    const [selectedEvent, setSelectedEvent] = useState(null);
 
     useEffect(() => {
-        getUser();
         fetchEvents();
     }, []);
-
-    async function getUser() {
-        const { data: { user } } = await supabase.auth.getUser();
-        setUserId(user?.id);
-        if (user) fetchSignups(user.id);
-    }
 
     async function fetchEvents() {
         const { data, error } = await supabase.from('events').select('*').order('date');
@@ -30,26 +23,13 @@ export default function EventsScreen() {
         setLoading(false);
     }
 
-    async function fetchSignups(uid) {
-        const { data } = await supabase.from('event_signups').select('event_id').eq('user_id', uid);
-        const map = {};
-        data?.forEach(s => map[s.event_id] = true);
-        setSignedUp(map);
-    }
-
-    async function toggleSignup(eventId) {
-        if (signedUp[eventId]) {
-            await supabase.from('event_signups').delete().eq('event_id', eventId).eq('user_id', userId);
-            setSignedUp(prev => ({ ...prev, [eventId]: false }));
-        } else {
-            await supabase.from('event_signups').insert({ event_id: eventId, user_id: userId });
-            setSignedUp(prev => ({ ...prev, [eventId]: true }));
-        }
-    }
-
     function formatDate(dateStr) {
         const d = new Date(dateStr);
         return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    }
+
+    if (selectedEvent) {
+        return <EventDetailScreen event={selectedEvent} onBack={() => setSelectedEvent(null)} />;
     }
 
     if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
@@ -67,10 +47,10 @@ export default function EventsScreen() {
                         <Text style={styles.meta}>🗓 {formatDate(item.date)}</Text>
                         <Text style={styles.desc}>{item.description}</Text>
                         <TouchableOpacity
-                            style={[styles.btn, signedUp[item.id] && styles.btnWithdraw]}
-                            onPress={() => toggleSignup(item.id)}
+                            style={styles.btn}
+                            onPress={() => setSelectedEvent(item)}
                         >
-                            <Text style={styles.btnText}>{signedUp[item.id] ? 'Withdraw' : 'Sign Up'}</Text>
+                            <Text style={styles.btnText}>View</Text>
                         </TouchableOpacity>
                     </View>
                 )}
@@ -87,6 +67,5 @@ const styles = StyleSheet.create({
     meta: { fontSize: 13, color: '#666', marginBottom: 2 },
     desc: { fontSize: 14, marginTop: 8, marginBottom: 12 },
     btn: { backgroundColor: '#2563eb', borderRadius: 8, padding: 10, alignItems: 'center' },
-    btnWithdraw: { backgroundColor: '#dc2626' },
     btnText: { color: '#fff', fontWeight: '600' },
 });
