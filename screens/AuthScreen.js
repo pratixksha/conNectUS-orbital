@@ -135,7 +135,8 @@ export default function AuthScreen({ navigation = null }) {
       Alert.alert('Login failed', error.message);
     } else {
       //console.log('logged in!');
-      router.push('/events');
+      //router.push('/events');
+      router.replace('/home');
     }
   }
 

@@ -5,12 +5,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
-import EventDetailScreen from './EventDetailScreen';
+import { router } from 'expo-router';
+//import EventDetailScreen from './EventDetailScreen';
 
-export default function EventsScreen() {
+export default function EventsScreen({ onBack }) {
     const [events, setEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [selectedEvent, setSelectedEvent] = useState(null);
+    
 
     useEffect(() => {
         fetchEvents();
@@ -28,14 +29,16 @@ export default function EventsScreen() {
         return d.toLocaleDateString('en-SG', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
 
-    if (selectedEvent) {
-        return <EventDetailScreen event={selectedEvent} onBack={() => setSelectedEvent(null)} />;
-    }
 
     if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
     return (
         <SafeAreaView style={styles.container}>
+            {onBack && (
+                <TouchableOpacity onPress={onBack} style={{ padding: 16 }}>
+                    <Text style={{ color: '#2563eb', fontSize: 16 }}>← Back</Text>
+                </TouchableOpacity>
+            )}
             <Text style={styles.header}>Events</Text>
             <FlatList
                 data={events}
@@ -48,7 +51,7 @@ export default function EventsScreen() {
                         <Text style={styles.desc}>{item.description}</Text>
                         <TouchableOpacity
                             style={styles.btn}
-                            onPress={() => setSelectedEvent(item)}
+                            onPress={() => router.push(`/event/${item.id}`)}
                         >
                             <Text style={styles.btnText}>View</Text>
                         </TouchableOpacity>
