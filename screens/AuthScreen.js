@@ -390,9 +390,9 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  logo: { fontSize: 36, fontWeight: '700', color: '#307af3ff', marginBottom: 8 },
-  logoN: { color: '#FB923C' },
-  logoUS: { color: '#FB923C' },
+  logo: { fontSize: 36, fontWeight: '700', color: '#1d4ed8', marginBottom: 8 },
+  logoN: { color: '#ea580c' },
+  logoUS: { color: '#ea580c' },
 
   // the grey subtitle "Connect with NUS students"
   tagline: { fontSize: 15, color: '#888', marginBottom: 40, textAlign: 'center' },

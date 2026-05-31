@@ -86,7 +86,9 @@ export default function HomeScreen({ onLogout }) {
           <TouchableOpacity onPress={() => setSidebarOpen(true)} style={styles.menuBtn}>
             <Text style={styles.menuIcon}>☰</Text>
           </TouchableOpacity>
-          <Text style={styles.appName}>conNectUS</Text>
+          <Text style={styles.appName}>
+            con<Text style={{ color: '#ea580c' }}>N</Text>ect<Text style={{ color: '#ea580c' }}>US</Text>
+          </Text>
           <View style={{ width: 32 }} />
         </View>
 
