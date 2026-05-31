@@ -23,12 +23,6 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#208AEF"
-        }
-      ],
       "expo-font",
       "expo-web-browser"
     ],
