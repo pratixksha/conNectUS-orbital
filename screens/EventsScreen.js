@@ -6,21 +6,30 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 //import EventDetailScreen from './EventDetailScreen';
 
 export default function EventsScreen({ onBack }) {
     const [events, setEvents] = useState([]);
+    const [signedUpEvents, setSignedUpEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    
 
-    useEffect(() => {
-        fetchEvents();
-    }, []);
 
-    async function fetchEvents() {
-        const { data, error } = await supabase.from('events').select('*').order('date');
-        if (error) Alert.alert('Error', error.message);
-        else setEvents(data);
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchAll();
+        }, [])
+    );
+
+
+    async function fetchAll() {
+        const { data: { user } } = await supabase.auth.getUser();
+        const [{ data: eventsData }, { data: signupsData }] = await Promise.all([
+            supabase.from('events').select('*').order('date'),
+            supabase.from('event_signups').select('event_id').eq('user_id', user.id)
+        ]);
+        setEvents(eventsData || []);
+        setSignedUpEvents((signupsData || []).map(r => r.event_id));
         setLoading(false);
     }
 
@@ -53,7 +62,7 @@ export default function EventsScreen({ onBack }) {
                             style={styles.btn}
                             onPress={() => router.push(`/event/${item.id}`)}
                         >
-                            <Text style={styles.btnText}>View</Text>
+                            <Text style={styles.btnText}>{signedUpEvents.includes(item.id) ? 'View' : 'RSVP'}</Text>
                         </TouchableOpacity>
                     </View>
                 )}

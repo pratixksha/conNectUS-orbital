@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
 import EventDetailScreen from './EventDetailScreen';
 import EventsScreen from './EventsScreen';
+import { useFocusEffect } from '@react-navigation/native';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -17,11 +18,14 @@ export default function HomeScreen({ onLogout }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [signedUpEvents, setSignedUpEvents] = useState([]);
 
-  useEffect(() => {
-    fetchProfile();
-    fetchEvents();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfile();
+      fetchEvents();
+    }, [])
+  );
 
   async function fetchProfile() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -32,10 +36,19 @@ export default function HomeScreen({ onLogout }) {
   }
 
   async function fetchEvents() {
-    const { data } = await supabase.from('events').select('*').order('date').limit(3);
-    setEvents(data || []);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('event_signups')
+        .select('event_id, events(*)')
+        .eq('user_id', user.id)
+        .order('events(date)', { ascending: true })
+        .limit(3);
+      setEvents((data || []).map(r => r.events));
+    }
     setLoading(false);
   }
+
 
   function formatDate(dateStr) {
     const d = new Date(dateStr);
@@ -54,7 +67,7 @@ export default function HomeScreen({ onLogout }) {
 
   // Show event detail
   if (selectedEvent) {
-    return <EventDetailScreen event={selectedEvent} onBack={() => setSelectedEvent(null)} />;
+    return <EventDetailScreen event={selectedEvent} onBack={() => { setSelectedEvent(null); fetchEvents(); }} />;
   }
 
   // Show events screen
@@ -104,7 +117,7 @@ export default function HomeScreen({ onLogout }) {
                   <Text style={styles.eventMeta}>{formatDate(event.date)} · {event.location}</Text>
                 </View>
                 <View style={styles.rsvpBtn}>
-                  <Text style={styles.rsvpText}>RSVP</Text>
+                  <Text style={styles.rsvpText}>View</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -226,7 +239,7 @@ const styles = StyleSheet.create({
   // Sidebar
   overlay: { flex: 1, flexDirection: 'row' },
   overlayBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
-  sidebar: { width: 260, backgroundColor: '#fff', paddingHorizontal: 16 },
+  sidebar: { width: 260, backgroundColor: '#fff', paddingHorizontal: 16, position: 'absolute', left: 0, top: 0, bottom: 0 },
   sidebarProfile: { paddingVertical: 24, borderBottomWidth: 1, borderBottomColor: '#f1f5f9', marginBottom: 12 },
   sidebarAvatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#dbeafe', justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   sidebarAvatarText: { fontSize: 24, fontWeight: 'bold', color: '#1d4ed8' },
