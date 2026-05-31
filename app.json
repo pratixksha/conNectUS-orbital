@@ -15,7 +15,8 @@
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#E6F4FE"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.amritaa.connectus"
     },
     "web": {
       "output": "static"
@@ -34,6 +35,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "23705478-5ba3-448b-b090-e1018bd674b7"
+      }
     }
   }
 }
