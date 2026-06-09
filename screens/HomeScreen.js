@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import EventDetailScreen from './EventDetailScreen';
 import EventsScreen from './EventsScreen';
 import { useFocusEffect } from '@react-navigation/native';
+import HangoutsScreen from './HangoutsScreen';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -73,6 +74,10 @@ export default function HomeScreen({ onLogout }) {
   // Show events screen
   if (currentScreen === 'events') {
     return <EventsScreen onBack={() => setCurrentScreen('home')} />;
+  }
+
+  if (currentScreen === 'hangouts') {
+    return <HangoutsScreen onBack={() => setCurrentScreen('home')} />;
   }
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
@@ -175,9 +180,9 @@ export default function HomeScreen({ onLogout }) {
               <Text style={styles.navIcon}>📅</Text>
               <Text style={[styles.navText, currentScreen === 'events' && styles.navActive]}>Events</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('hangouts')}>
               <Text style={styles.navIcon}>📍</Text>
-              <Text style={styles.navText}>Hangouts</Text>
+              <Text style={[styles.navText, currentScreen === 'hangouts' && styles.navActive]}>Hangouts</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
               <Text style={styles.navIcon}>💬</Text>
