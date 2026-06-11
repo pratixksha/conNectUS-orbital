@@ -123,4 +123,23 @@ drop trigger if exists hangout_participants_count on hangout_participants;
 create trigger hangout_participants_count
 after insert or delete on hangout_participants
 for each row execute function sync_hangout_participant_count();
-  
+
+--Profiles
+alter table profiles add column if not exists bio text;
+alter table profiles add column if not exists public_profile boolean default true;
+alter table profiles add column if not exists only_friends_message boolean default false;
+
+create policy "Users can upload own avatar"
+  on storage.objects for insert with check (
+    bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Anyone can view avatars"
+  on storage.objects for select using (bucket_id = 'avatars');
+
+create policy "Users can update own avatar"
+  on storage.objects for update using (
+    bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+alter table profiles add column if not exists avatar_url text;
