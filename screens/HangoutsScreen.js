@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
   mapFab: { position: 'absolute', bottom: 28, right: 20, width: 56, height: 56, borderRadius: 28, backgroundColor: '#F97316', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 5 },
   mapFabIcon: { color: '#fff', fontSize: 28, fontWeight: '300', marginTop: -2 },
   dropPinScreen: { flex: 1, backgroundColor: '#fff' },
-  dropPinHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  dropPinHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, paddingTop: 40, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   dropPinCancel: { fontSize: 16, color: '#1d4ed8', width: 60 },
   dropPinTitle: { fontSize: 17, fontWeight: '700' },
   dropPinScroll: { flex: 1, paddingHorizontal: 16 },
