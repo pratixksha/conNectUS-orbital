@@ -52,3 +52,94 @@ alter table events add column image_url text;
 alter table event_signups
 add constraint event_signups_user_fkey
 foreign key (user_id) references profiles(id) on delete cascade;
+
+-- Hangouts
+create table hangouts (
+  id uuid default gen_random_uuid() primary key,
+  created_by uuid references profiles(id) on delete cascade not null,
+  title text not null,
+  location_name text not null,
+  hangout_time timestamp with time zone not null,
+  vibes text[] default '{}',
+  vibe text not null,
+  details text,
+  expires_at timestamp with time zone not null,
+  latitude double precision not null,
+  longitude double precision not null,
+  max_participants int default 5,
+  participant_count int default 1,
+  created_at timestamp with time zone default now()
+);
+
+create table hangout_participants (
+  id uuid default gen_random_uuid() primary key,
+  hangout_id uuid references hangouts on delete cascade not null,
+  user_id uuid references auth.users on delete cascade not null,
+  joined_at timestamp with time zone default now(),
+  unique(hangout_id, user_id)
+);
+
+alter table hangouts enable row level security;
+alter table hangout_participants enable row level security;
+
+create policy "Anyone can view active hangouts"
+  on hangouts for select using (true);
+
+create policy "Users can create hangouts"
+  on hangouts for insert with check (auth.uid() = created_by);
+
+create policy "Creators can update own hangouts"
+  on hangouts for update using (auth.uid() = created_by);
+
+create policy "Anyone can view participants"
+  on hangout_participants for select using (true);
+
+create policy "Users can join hangouts"
+  on hangout_participants for insert with check (auth.uid() = user_id);
+
+create policy "Users can leave hangouts"
+  on hangout_participants for delete using (auth.uid() = user_id);
+
+create policy "Users can delete own hangouts"
+  on hangouts for delete using (auth.uid() = created_by);
+
+-- Keep participant_count in sync with hangout_participants
+create or replace function sync_hangout_participant_count()
+returns trigger as $$
+declare
+  target_id uuid;
+begin
+  target_id := coalesce(new.hangout_id, old.hangout_id);
+  update hangouts
+  set participant_count = (
+    select count(*)::int from hangout_participants where hangout_id = target_id
+  )
+  where id = target_id;
+  return coalesce(new, old);
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists hangout_participants_count on hangout_participants;
+create trigger hangout_participants_count
+after insert or delete on hangout_participants
+for each row execute function sync_hangout_participant_count();
+
+--Profiles
+alter table profiles add column if not exists bio text;
+alter table profiles add column if not exists public_profile boolean default true;
+alter table profiles add column if not exists only_friends_message boolean default false;
+
+create policy "Users can upload own avatar"
+  on storage.objects for insert with check (
+    bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Anyone can view avatars"
+  on storage.objects for select using (bucket_id = 'avatars');
+
+create policy "Users can update own avatar"
+  on storage.objects for update using (
+    bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+alter table profiles add column if not exists avatar_url text;

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator, Modal, Animated
+  StyleSheet, ActivityIndicator, Modal, Image, Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -9,6 +9,8 @@ import { router } from 'expo-router';
 import EventDetailScreen from './EventDetailScreen';
 import EventsScreen from './EventsScreen';
 import { useFocusEffect } from '@react-navigation/native';
+import HangoutsScreen from './HangoutsScreen';
+import ProfileScreen from './ProfileScreen';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -75,6 +77,14 @@ export default function HomeScreen({ onLogout }) {
     return <EventsScreen onBack={() => setCurrentScreen('home')} />;
   }
 
+  if (currentScreen === 'hangouts') {
+    return <HangoutsScreen onBack={() => setCurrentScreen('home')} />;
+  }
+
+  if (currentScreen === 'profile') {
+    return <ProfileScreen onBack={() => { setCurrentScreen('home'); fetchProfile(); }} />;
+  }
+
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
@@ -95,9 +105,13 @@ export default function HomeScreen({ onLogout }) {
         <ScrollView>
           {/* Greeting */}
           <View style={styles.greeting}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{profile?.full_name?.[0] || '?'}</Text>
-            </View>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{profile?.full_name?.[0] || '?'}</Text>
+              </View>
+            )}
             <View>
               <Text style={styles.greetName}>Hey, {profile?.full_name?.split(' ')[0] || 'there'} 👋</Text>
               <Text style={styles.greetSub}>{profile?.faculty} · Y{profile?.year?.replace('Year ', '')}</Text>
@@ -159,9 +173,13 @@ export default function HomeScreen({ onLogout }) {
           <SafeAreaView style={styles.sidebar}>
             {/* Profile */}
             <View style={styles.sidebarProfile}>
-              <View style={styles.sidebarAvatar}>
-                <Text style={styles.sidebarAvatarText}>{profile?.full_name?.[0] || '?'}</Text>
-              </View>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.sidebarAvatar} />
+              ) : (
+                <View style={styles.sidebarAvatar}>
+                  <Text style={styles.sidebarAvatarText}>{profile?.full_name?.[0] || '?'}</Text>
+                </View>
+              )}
               <Text style={styles.sidebarName}>{profile?.full_name || 'NUS Student'}</Text>
               <Text style={styles.sidebarSub}>{profile?.faculty} · Y{profile?.year?.replace('Year ', '')}</Text>
             </View>
@@ -175,9 +193,9 @@ export default function HomeScreen({ onLogout }) {
               <Text style={styles.navIcon}>📅</Text>
               <Text style={[styles.navText, currentScreen === 'events' && styles.navActive]}>Events</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('hangouts')}>
               <Text style={styles.navIcon}>📍</Text>
-              <Text style={styles.navText}>Hangouts</Text>
+              <Text style={[styles.navText, currentScreen === 'hangouts' && styles.navActive]}>Hangouts</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
               <Text style={styles.navIcon}>💬</Text>
@@ -193,16 +211,12 @@ export default function HomeScreen({ onLogout }) {
               <Text style={styles.navIcon}>🤝</Text>
               <Text style={styles.navText}>Friends</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
-              <Text style={styles.navIcon}>👤</Text>
-              <Text style={styles.navText}>Profile</Text>
-            </TouchableOpacity>
 
             <View style={{ flex: 1 }} />
 
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
-              <Text style={styles.navIcon}>⚙️</Text>
-              <Text style={styles.navText}>Settings</Text>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('profile')}>
+              <Text style={styles.navIcon}>👤</Text>
+              <Text style={[styles.navText, currentScreen === 'profile' && styles.navActive]}>Profile</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.navItem} onPress={handleLogout}>
               <Text style={styles.navIcon}>↩️</Text>
