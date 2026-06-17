@@ -259,8 +259,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 60 },
   backText: { fontSize: 15, color: '#fff' },
-  headerEyebrow: { fontSize: 10, color: '#bfdbfe', fontWeight: '700', letterSpacing: 1 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  headerEyebrow: { fontSize: 10, color: '#bfdbfe', fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff', textAlign: 'center' },
   tabs: {
     flexDirection: 'row',
     borderBottomWidth: 1,

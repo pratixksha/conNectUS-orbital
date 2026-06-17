@@ -99,6 +99,7 @@ export default function MeetPeopleScreen({ onBack, onOpenChat }) {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0 }} 
           contentContainerStyle={styles.filtersRow}
         >
           {INTEREST_FILTERS.map(filter => (
@@ -173,16 +174,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
-  filtersRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8 },
+  filtersRow: { paddingHorizontal: 16, paddingBottom: 12, gap: 8, alignItems: 'center', },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 16,     
+    paddingVertical: 10,       
+    borderRadius: 18,
     backgroundColor: '#f1f5f9',
     marginRight: 8,
+    alignSelf: 'flex-start',   
   },
   filterChipActive: { backgroundColor: '#1d4ed8' },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
+  filterText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748b',
+    lineHeight: 16,           
+  },
   filterTextActive: { color: '#fff' },
   list: { paddingHorizontal: 16, paddingBottom: 24 },
   row: {

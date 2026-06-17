@@ -39,7 +39,7 @@ export default function UserProfileScreen({
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, faculty, year, bio, interests, avatar_url, public_profile')
+      .select('id, full_name, faculty, year, networking_goal, bio, interests, avatar_url, public_profile')
       .eq('id', userId)
       .single();
 
@@ -155,6 +155,13 @@ export default function UserProfileScreen({
           </View>
 
           <View style={styles.card}>
+            <Text style={styles.cardLabel}>NETWORKING GOAL</Text>
+            <Text style={styles.bioText}>
+              {profile.networking_goal ? `"${profile.networking_goal}"` : 'No networking goal set'}
+            </Text>
+          </View>
+
+          <View style={styles.card}>
             <Text style={styles.cardLabel}>BIO</Text>
             <Text style={styles.bioText}>
               {profile.bio ? `"${profile.bio}"` : 'No bio yet'}
@@ -215,8 +222,8 @@ const styles = StyleSheet.create({
   },
   backBtn: { width: 60 },
   backText: { fontSize: 15, color: '#fff' },
-  headerEyebrow: { fontSize: 10, color: '#bfdbfe', fontWeight: '700', letterSpacing: 1 },
-  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff' },
+  headerEyebrow: { fontSize: 10, color: '#bfdbfe', fontWeight: '700', letterSpacing: 1, textAlign: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#fff', textAlign: 'center' },
   scroll: { paddingHorizontal: 16, paddingTop: 24, paddingBottom: 100 },
   avatarSection: { alignItems: 'center', marginBottom: 24 },
   name: { fontSize: 24, fontWeight: '700', color: '#111', marginTop: 12 },

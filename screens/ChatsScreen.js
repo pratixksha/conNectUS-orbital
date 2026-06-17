@@ -17,14 +17,15 @@ import {
   getOrCreateConversation,
   getCurrentUserId,
 } from '../lib/social';
+import UserProfileScreen from './UserProfileScreen';
 
-function ChatThreadScreen({ conversationId, otherUser, currentUserId, onBack }) {
+function ChatThreadScreen({ conversationId, otherUser, currentUserId, onBack, onOpenProfile  }) {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
-
+  
   const loadMessages = useCallback(async () => {
     try {
       const data = await fetchMessages(conversationId);
@@ -92,10 +93,13 @@ function ChatThreadScreen({ conversationId, otherUser, currentUserId, onBack }) 
           <TouchableOpacity onPress={onBack} style={styles.backBtn}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <View style={styles.threadHeaderCenter}>
+          <TouchableOpacity
+            style={styles.threadHeaderCenter}
+            onPress={() => onOpenProfile?.(otherUser)}
+          >
             <ProfileAvatar profile={otherUser} size={36} />
             <Text style={styles.threadName}>{otherUser.full_name}</Text>
-          </View>
+          </TouchableOpacity>
           <View style={{ width: 60 }} />
         </View>
 
@@ -196,6 +200,8 @@ export default function ChatsScreen({ onBack, initialChat = null }) {
   const [showNewChat, setShowNewChat] = useState(false);
   const [friends, setFriends] = useState([]);
   const [friendsLoading, setFriendsLoading] = useState(false);
+  const [viewingProfile, setViewingProfile] = useState(null);
+
 
   const loadConversations = useCallback(async () => {
     setLoading(true);
@@ -275,6 +281,16 @@ export default function ChatsScreen({ onBack, initialChat = null }) {
     }
   }
 
+  if (viewingProfile) {
+    return (
+      <UserProfileScreen
+        userId={viewingProfile.id}
+        onBack={() => setViewingProfile(null)}
+        onOpenChat={() => setViewingProfile(null)} // already chatting with them
+      />
+    );
+  }
+
   if (activeChat) {
     return (
       <ChatThreadScreen
@@ -285,6 +301,7 @@ export default function ChatsScreen({ onBack, initialChat = null }) {
           setActiveChat(null);
           loadConversations();
         }}
+        onOpenProfile={(profile) => setViewingProfile(profile)}
       />
     );
   }
