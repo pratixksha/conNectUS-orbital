@@ -11,6 +11,8 @@ import EventsScreen from './EventsScreen';
 import { useFocusEffect } from '@react-navigation/native';
 import HangoutsScreen from './HangoutsScreen';
 import ProfileScreen from './ProfileScreen';
+import CommunitiesScreen from './CommunitiesScreen';
+import CreateCommunityScreen from './CreateCommunityScreen';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -79,6 +81,14 @@ export default function HomeScreen({ onLogout }) {
 
   if (currentScreen === 'hangouts') {
     return <HangoutsScreen onBack={() => setCurrentScreen('home')} />;
+  }
+
+  if (currentScreen === 'communities') {
+    return <CommunitiesScreen onBack={() => setCurrentScreen('home')} onCreatePress={() => setCurrentScreen('createCommunity')} />;
+  }
+
+  if (currentScreen === 'createCommunity') {
+    return <CreateCommunityScreen onBack={() => setCurrentScreen('communities')} onCreated={() => setCurrentScreen('communities')} />;
   }
 
   if (currentScreen === 'profile') {
@@ -203,7 +213,7 @@ export default function HomeScreen({ onLogout }) {
             </TouchableOpacity>
 
             <Text style={styles.navSection}>SOCIAL</Text>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('communities')}>
               <Text style={styles.navIcon}>👥</Text>
               <Text style={styles.navText}>Communities</Text>
             </TouchableOpacity>
