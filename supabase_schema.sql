@@ -379,9 +379,6 @@ alter publication supabase_realtime add table friendships;
 alter publication supabase_realtime add table messages;
 alter publication supabase_realtime add table conversations;
 
--- ---------------------------------------------------------------------------
--- Messaging privacy migration (run in Supabase SQL Editor if not applied yet)
--- ---------------------------------------------------------------------------
 drop function if exists public.get_or_create_conversation(uuid, uuid);
 drop function if exists public.get_or_create_conversation(uuid, uuid, uuid);
 
