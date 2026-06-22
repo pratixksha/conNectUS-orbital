@@ -216,18 +216,52 @@ create policy "Friends can create conversations"
   on conversations for insert
   with check (
     auth.uid() in (participant_one, participant_two)
-    and are_friends(participant_one, participant_two)
+    and can_user_message(
+      auth.uid(),
+      case when auth.uid() = participant_one then participant_two else participant_one end
+    )
   );
 
-create or replace function get_or_create_conversation(user_a uuid, user_b uuid)
+create policy "Users can delete own conversations"
+  on conversations for delete
+  using (auth.uid() in (participant_one, participant_two));
+
+create or replace function can_user_message(sender uuid, recipient uuid)
+returns boolean as $$
+declare
+  recipient_only_friends boolean;
+begin
+  if sender is null or recipient is null or sender = recipient then
+    return false;
+  end if;
+
+  if are_friends(sender, recipient) then
+    return true;
+  end if;
+
+  select coalesce(only_friends_message, false) into recipient_only_friends
+  from profiles where id = recipient;
+
+  return not recipient_only_friends;
+end;
+$$ language plpgsql security definer stable;
+
+create or replace function get_or_create_conversation(user_a uuid, user_b uuid, initiator_id uuid default null)
 returns uuid as $$
 declare
   p1 uuid;
   p2 uuid;
   conv_id uuid;
+  initiator uuid;
+  other_user uuid;
 begin
   if user_a is null or user_b is null or user_a = user_b then
     raise exception 'Invalid conversation participants';
+  end if;
+
+  initiator := coalesce(initiator_id, user_a);
+  if initiator not in (user_a, user_b) then
+    raise exception 'Initiator must be a conversation participant';
   end if;
 
   if user_a < user_b then
@@ -238,8 +272,10 @@ begin
     p2 := user_a;
   end if;
 
-  if not are_friends(p1, p2) then
-    raise exception 'Users must be friends to start a conversation';
+  other_user := case when initiator = p1 then p2 else p1 end;
+
+  if not can_user_message(initiator, other_user) then
+    raise exception 'You cannot message this user';
   end if;
 
   select id into conv_id
@@ -302,7 +338,7 @@ begin
     return are_friends(sender, other_user);
   end if;
 
-  return are_friends(sender, other_user);
+  return true;
 end;
 $$ language plpgsql security definer stable;
 
@@ -342,3 +378,76 @@ for each row execute function update_conversation_last_message();
 alter publication supabase_realtime add table friendships;
 alter publication supabase_realtime add table messages;
 alter publication supabase_realtime add table conversations;
+
+-- ---------------------------------------------------------------------------
+-- Messaging privacy migration (run in Supabase SQL Editor if not applied yet)
+-- ---------------------------------------------------------------------------
+drop function if exists public.get_or_create_conversation(uuid, uuid);
+drop function if exists public.get_or_create_conversation(uuid, uuid, uuid);
+
+create or replace function can_user_message(sender uuid, recipient uuid)
+returns boolean as $$
+declare
+  recipient_only_friends boolean;
+begin
+  if sender is null or recipient is null or sender = recipient then
+    return false;
+  end if;
+
+  if are_friends(sender, recipient) then
+    return true;
+  end if;
+
+  select coalesce(only_friends_message, false) into recipient_only_friends
+  from profiles where id = recipient;
+
+  return not recipient_only_friends;
+end;
+$$ language plpgsql security definer stable;
+
+create or replace function can_send_message(sender uuid, conv_id uuid)
+returns boolean as $$
+declare
+  other_user uuid;
+  recipient_only_friends boolean;
+begin
+  select case
+    when c.participant_one = sender then c.participant_two
+    else c.participant_one
+  end into other_user
+  from conversations c
+  where c.id = conv_id;
+
+  if other_user is null then
+    return false;
+  end if;
+
+  if not (sender in (
+    select participant_one from conversations where id = conv_id
+    union
+    select participant_two from conversations where id = conv_id
+  )) then
+    return false;
+  end if;
+
+  select coalesce(only_friends_message, false) into recipient_only_friends
+  from profiles where id = other_user;
+
+  if recipient_only_friends then
+    return are_friends(sender, other_user);
+  end if;
+
+  return true;
+end;
+$$ language plpgsql security definer stable;
+
+drop policy if exists "Friends can create conversations" on conversations;
+create policy "Friends can create conversations"
+  on conversations for insert
+  with check (
+    auth.uid() in (participant_one, participant_two)
+    and can_user_message(
+      auth.uid(),
+      case when auth.uid() = participant_one then participant_two else participant_one end
+    )
+  );

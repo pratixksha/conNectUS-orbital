@@ -109,6 +109,21 @@ export default function FriendsScreen({ onBack, onOpenChat }) {
     setActionId(null);
   }
 
+  function confirmRemoveFriend(friendshipId, name) {
+    Alert.alert(
+      'Remove friend',
+      `Remove ${name} from your friends?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: () => handleRemove(friendshipId),
+        },
+      ]
+    );
+  }
+
   if (showMeetPeople) {
     return (
       <MeetPeopleScreen
@@ -179,20 +194,30 @@ export default function FriendsScreen({ onBack, onOpenChat }) {
               <Text style={styles.emptyText}>No friends yet. Tap Meet People to connect!</Text>
             )}
             {friends.map(({ friendshipId, profile }) => (
-              <TouchableOpacity
-                key={friendshipId}
-                style={styles.row}
-                onPress={() => setSelectedUserId(profile.id)}
-              >
-                <ProfileAvatar profile={profile} size={44} />
-                <View style={styles.rowInfo}>
-                  <Text style={styles.rowName}>{profile.full_name}</Text>
-                  <Text style={styles.rowSub}>
-                    {profile.year?.replace('Year ', 'Y') || 'Y?'} · {profile.faculty || 'NUS'}
-                  </Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </TouchableOpacity>
+              <View key={friendshipId} style={styles.friendRow}>
+                <TouchableOpacity
+                  style={styles.friendRowMain}
+                  onPress={() => setSelectedUserId(profile.id)}
+                >
+                  <ProfileAvatar profile={profile} size={44} />
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowName}>{profile.full_name}</Text>
+                    <Text style={styles.rowSub}>
+                      {profile.year?.replace('Year ', 'Y') || 'Y?'} · {profile.faculty || 'NUS'}
+                    </Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.friendRemoveBtn}
+                  onPress={() => confirmRemoveFriend(friendshipId, profile.full_name)}
+                  disabled={actionId === friendshipId}
+                >
+                  {actionId === friendshipId
+                    ? <ActivityIndicator size="small" color="#dc2626" />
+                    : <Text style={styles.removeText}>Remove</Text>}
+                </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
         ) : (
@@ -284,6 +309,28 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
     gap: 12,
+  },
+  friendRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingVertical: 10,
+  },
+  friendRowMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  friendRemoveBtn: {
+    alignSelf: 'flex-start',
+    marginLeft: 56,
+    marginTop: 4,
+    backgroundColor: '#fee2e2',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    minWidth: 80,
+    alignItems: 'center',
   },
   rowInfo: { flex: 1 },
   rowName: { fontSize: 16, fontWeight: '600', color: '#111' },

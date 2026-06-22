@@ -96,7 +96,6 @@ export default function ProfileScreen({ onBack }) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Privacy
-  const [publicProfile, setPublicProfile] = useState(true);
   const [onlyFriendsMessage, setOnlyFriendsMessage] = useState(false);
 
   // Pickers
@@ -118,7 +117,6 @@ export default function ProfileScreen({ onBack }) {
         setGoal(data.networking_goal || '');
         setBio(data.bio || '');
         setInterests(data.interests || []);
-        setPublicProfile(data.public_profile ?? true);
         setOnlyFriendsMessage(data.only_friends_message ?? false);
         setAvatarUrl(data.avatar_url || null);
       }
@@ -191,7 +189,6 @@ export default function ProfileScreen({ onBack }) {
       bio,
       interests,
       avatar_url: avatarUrl,
-      public_profile: publicProfile,
       only_friends_message: onlyFriendsMessage,
     }).eq('id', user.id);
 
@@ -361,25 +358,13 @@ export default function ProfileScreen({ onBack }) {
             <Text style={styles.cardLabel}>PRIVACY</Text>
             <View style={styles.toggleRow}>
               <View style={styles.toggleInfo}>
-                <Text style={styles.toggleLabel}>Public profile</Text>
-                <Text style={styles.toggleSub}>Anyone on conNectUS can view your profile</Text>
-              </View>
-              <Switch
-                value={publicProfile}
-                onValueChange={setPublicProfile}
-                trackColor={{ false: '#e5e7eb', true: '#86efac' }}
-                thumbColor={publicProfile ? '#16a34a' : '#9ca3af'}
-              />
-            </View>
-            <View style={styles.separator} />
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleInfo}>
                 <Text style={styles.toggleLabel}>Only friends can message me</Text>
                 <Text style={styles.toggleSub}>Strangers won't be able to send you messages</Text>
               </View>
               <Switch
                 value={onlyFriendsMessage}
                 onValueChange={setOnlyFriendsMessage}
+                disabled={!editing}
                 trackColor={{ false: '#e5e7eb', true: '#86efac' }}
                 thumbColor={onlyFriendsMessage ? '#16a34a' : '#9ca3af'}
               />

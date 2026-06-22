@@ -13,6 +13,8 @@ import {
   sendFriendRequest,
   getOrCreateConversation,
   getCurrentUserId,
+  canMessageUser,
+  removeFriendship,
 } from '../lib/social';
 
 export default function UserProfileScreen({
@@ -27,6 +29,7 @@ export default function UserProfileScreen({
   const [currentUserId, setCurrentUserId] = useState(null);
   const [friendship, setFriendship] = useState(initialFriendship);
   const [mutualCount, setMutualCount] = useState(0);
+  const [canMessage, setCanMessage] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -39,7 +42,7 @@ export default function UserProfileScreen({
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, faculty, year, networking_goal, bio, interests, avatar_url, public_profile')
+      .select('id, full_name, faculty, year, networking_goal, bio, interests, avatar_url')
       .eq('id', userId)
       .single();
 
@@ -58,6 +61,7 @@ export default function UserProfileScreen({
 
     const mutuals = await countMutualFriends(me, userId);
     setMutualCount(mutuals);
+    setCanMessage(await canMessageUser(me, userId));
     setLoading(false);
   }
 
@@ -76,6 +80,15 @@ export default function UserProfileScreen({
   async function handleOpenChat() {
     setActionLoading(true);
     try {
+      const allowed = await canMessageUser(currentUserId, userId);
+      if (!allowed) {
+        Alert.alert(
+          'Cannot message',
+          `${profile.full_name} only accepts messages from friends.`
+        );
+        setActionLoading(false);
+        return;
+      }
       const conversationId = await getOrCreateConversation(currentUserId, userId);
       onOpenChat({ conversationId, otherUser: profile });
     } catch (err) {
@@ -84,42 +97,103 @@ export default function UserProfileScreen({
     setActionLoading(false);
   }
 
+  function handleRemoveFriend() {
+    Alert.alert(
+      'Remove friend',
+      `Remove ${profile.full_name} from your friends?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            setActionLoading(true);
+            try {
+              await removeFriendship(friendship.id);
+              setFriendship(null);
+              onBack();
+            } catch (err) {
+              Alert.alert('Error', err.message);
+            }
+            setActionLoading(false);
+          },
+        },
+      ]
+    );
+  }
+
   function renderActionButton() {
     if (friendship?.status === 'accepted') {
       return (
-        <TouchableOpacity
-          style={styles.primaryBtn}
-          onPress={handleOpenChat}
-          disabled={actionLoading}
-        >
-          {actionLoading
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.primaryBtnText}>Chat</Text>}
-        </TouchableOpacity>
+        <View style={{ gap: 10 }}>
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleOpenChat}
+            disabled={actionLoading}
+          >
+            {actionLoading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.primaryBtnText}>Chat</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.removeBtn}
+            onPress={handleRemoveFriend}
+            disabled={actionLoading}
+          >
+            <Text style={styles.removeBtnText}>Remove Friend</Text>
+          </TouchableOpacity>
+        </View>
       );
     }
 
     if (friendship?.status === 'pending') {
       const sentByMe = friendship.requester_id === currentUserId;
       return (
-        <View style={[styles.primaryBtn, styles.disabledBtn]}>
-          <Text style={styles.primaryBtnText}>
-            {sentByMe ? 'Request Sent' : 'Request Pending'}
-          </Text>
+        <View style={{ gap: 10 }}>
+          {canMessage && (
+            <TouchableOpacity
+              style={styles.primaryBtn}
+              onPress={handleOpenChat}
+              disabled={actionLoading}
+            >
+              {actionLoading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.primaryBtnText}>Message</Text>}
+            </TouchableOpacity>
+          )}
+          <View style={[styles.primaryBtn, styles.disabledBtn]}>
+            <Text style={styles.primaryBtnText}>
+              {sentByMe ? 'Request Sent' : 'Request Pending'}
+            </Text>
+          </View>
         </View>
       );
     }
 
+    // Not friends yet
     return (
-      <TouchableOpacity
-        style={styles.primaryBtn}
-        onPress={handleSendRequest}
-        disabled={actionLoading}
-      >
-        {actionLoading
-          ? <ActivityIndicator color="#fff" />
-          : <Text style={styles.primaryBtnText}>Send Request</Text>}
-      </TouchableOpacity>
+      <View style={{ gap: 10 }}>
+        {canMessage && (
+          <TouchableOpacity
+            style={styles.primaryBtn}
+            onPress={handleOpenChat}
+            disabled={actionLoading}
+          >
+            {actionLoading
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.primaryBtnText}>Message</Text>}
+          </TouchableOpacity>
+        )}
+        <TouchableOpacity
+          style={[styles.primaryBtn, canMessage ? styles.secondaryActionBtn : null]}
+          onPress={handleSendRequest}
+          disabled={actionLoading}
+        >
+          {actionLoading
+            ? <ActivityIndicator color="#fff" />
+            : <Text style={styles.primaryBtnText}>Send Request</Text>}
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -266,4 +340,12 @@ const styles = StyleSheet.create({
   },
   disabledBtn: { backgroundColor: '#94a3b8' },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  secondaryActionBtn: { backgroundColor: '#64748b' },
+  removeBtn: {
+    backgroundColor: '#fee2e2',
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  removeBtnText: { color: '#dc2626', fontSize: 15, fontWeight: '700' },
 });
