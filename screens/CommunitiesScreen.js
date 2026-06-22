@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, TextInput, ActivityIndicator,
+  StyleSheet, TextInput, ActivityIndicator, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -60,6 +60,31 @@ export default function CommunitiesScreen({ onBack, onCreatePress }) {
     fetchCommunities(userId);
   }
 
+  async function deleteCommunity(community) {
+    if (community.member_count > 1) {
+      Alert.alert(
+        'Cannot Delete',
+        'This community still has members. Ask them to leave before deleting, or transfer ownership to someone else.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    Alert.alert(
+      'Delete Community',
+      `Are you sure you want to delete "${community.name}"? This cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete', style: 'destructive',
+          onPress: async () => {
+            await supabase.from('communities').delete().eq('id', community.id);
+            fetchCommunities(userId);
+          }
+        }
+      ]
+    );
+  }
+
   const filtered = communities.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = activeCategory === 'All' || c.category === activeCategory;
@@ -82,6 +107,7 @@ export default function CommunitiesScreen({ onBack, onCreatePress }) {
 
   function CommunityCard({ community }) {
     const joined = myIds.has(community.id);
+    const isCreator = community.created_by === userId;
     const color = CATEGORY_COLORS[community.category] || '#94a3b8';
     return (
       <View style={styles.card}>
@@ -98,17 +124,25 @@ export default function CommunitiesScreen({ onBack, onCreatePress }) {
           {community.description ? <Text style={styles.cardDesc} numberOfLines={1}>{community.description}</Text> : null}
           <Text style={styles.cardMeta}>{community.member_count || 0} members</Text>
         </View>
-        <TouchableOpacity
-          style={[styles.joinBtn, joined && styles.leaveBtn]}
-          onPress={() => toggleMembership(community)}
-        >
-          <Text style={[styles.joinText, joined && styles.leaveText]}>{joined ? 'Leave' : 'Join'}</Text>
-        </TouchableOpacity>
+        <View style={styles.cardActions}>
+          {isCreator ? (
+            <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCommunity(community)}>
+              <Text style={styles.deleteText}>🗑</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.joinBtn, joined && styles.leaveBtn]}
+              onPress={() => toggleMembership(community)}
+            >
+              <Text style={[styles.joinText, joined && styles.leaveText]}>{joined ? 'Leave' : 'Join'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     );
   }
 
-  if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
+  if (loading || !userId) return <ActivityIndicator style={{ flex: 1 }} />;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -180,9 +214,12 @@ const styles = StyleSheet.create({
   catTagText: { fontSize: 11, fontWeight: '600' },
   cardDesc: { fontSize: 12, color: '#64748b', marginTop: 2 },
   cardMeta: { fontSize: 11, color: '#94a3b8', marginTop: 3 },
+  cardActions: { marginLeft: 8 },
   joinBtn: { backgroundColor: '#1d4ed8', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
   leaveBtn: { backgroundColor: '#f1f5f9' },
   joinText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   leaveText: { color: '#64748b' },
+  deleteBtn: { padding: 6 },
+  deleteText: { fontSize: 18 },
   empty: { color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 20 },
 });
