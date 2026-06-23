@@ -63,7 +63,7 @@ async function enrichHangouts(hangouts) {
   return attachParticipantCounts(await attachProfiles(hangouts));
 }
 
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
+export function getDistanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
@@ -75,12 +75,12 @@ function getDistanceMeters(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function formatDistance(meters) {
+export function formatDistance(meters) {
   if (meters < 1000) return `${Math.round(meters)}m away`;
   return `${(meters / 1000).toFixed(1)}km away`;
 }
 
-function formatHangoutTime(dateStr) {
+export function formatHangoutTime(dateStr) {
   const d = new Date(dateStr);
   const now = new Date();
   const tomorrow = new Date(now);
@@ -91,17 +91,17 @@ function formatHangoutTime(dateStr) {
   return d.toLocaleDateString('en-SG', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-function isActive(hangout) {
+export function isActive(hangout) {
   return new Date(hangout.hangout_time) > new Date();
 }
 
-function getMaxHangoutDate() {
+export function getMaxHangoutDate() {
   const d = new Date();
   d.setDate(d.getDate() + 3);
   return d;
 }
 
-function isVisibleOnMap(hangout, joinedIds, userId) {
+export function isVisibleOnMap(hangout, joinedIds, userId) {
   if (!isActive(hangout)) return false;
   const isFull = (hangout.participant_count || 1) >= (hangout.max_participants || 5);
   const isParticipant = joinedIds.has(hangout.id) || hangout.created_by === userId;
