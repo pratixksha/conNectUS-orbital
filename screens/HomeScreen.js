@@ -11,6 +11,8 @@ import EventsScreen from './EventsScreen';
 import { useFocusEffect } from '@react-navigation/native';
 import HangoutsScreen from './HangoutsScreen';
 import ProfileScreen from './ProfileScreen';
+import FriendsScreen from './FriendsScreen';
+import ChatsScreen from './ChatsScreen';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -21,6 +23,7 @@ export default function HomeScreen({ onLogout }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [signedUpEvents, setSignedUpEvents] = useState([]);
+  const [pendingChat, setPendingChat] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -83,6 +86,30 @@ export default function HomeScreen({ onLogout }) {
 
   if (currentScreen === 'profile') {
     return <ProfileScreen onBack={() => { setCurrentScreen('home'); fetchProfile(); }} />;
+  }
+
+  if (currentScreen === 'friends') {
+    return (
+      <FriendsScreen
+        onBack={() => setCurrentScreen('home')}
+        onOpenChat={(chat) => {
+          setPendingChat(chat);
+          setCurrentScreen('chats');
+        }}
+      />
+    );
+  }
+
+  if (currentScreen === 'chats') {
+    return (
+      <ChatsScreen
+        initialChat={pendingChat}
+        onBack={() => {
+          setPendingChat(null);
+          setCurrentScreen('home');
+        }}
+      />
+    );
   }
 
   if (loading) return <ActivityIndicator style={{ flex: 1 }} />;
@@ -197,9 +224,9 @@ export default function HomeScreen({ onLogout }) {
               <Text style={styles.navIcon}>📍</Text>
               <Text style={[styles.navText, currentScreen === 'hangouts' && styles.navActive]}>Hangouts</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('chats')}>
               <Text style={styles.navIcon}>💬</Text>
-              <Text style={styles.navText}>Chats</Text>
+              <Text style={[styles.navText, currentScreen === 'chats' && styles.navActive]}>Chats</Text>
             </TouchableOpacity>
 
             <Text style={styles.navSection}>SOCIAL</Text>
@@ -207,9 +234,9 @@ export default function HomeScreen({ onLogout }) {
               <Text style={styles.navIcon}>👥</Text>
               <Text style={styles.navText}>Communities</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('friends')}>
               <Text style={styles.navIcon}>🤝</Text>
-              <Text style={styles.navText}>Friends</Text>
+              <Text style={[styles.navText, currentScreen === 'friends' && styles.navActive]}>Friends</Text>
             </TouchableOpacity>
 
             <View style={{ flex: 1 }} />
