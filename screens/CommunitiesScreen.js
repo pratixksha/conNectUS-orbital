@@ -13,7 +13,7 @@ const CATEGORY_COLORS = {
   Tech: '#06b6d4', Other: '#94a3b8',
 };
 
-export default function CommunitiesScreen({ onBack, onCreatePress }) {
+export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPress }) {
   const [userId, setUserId] = useState(null);
   const [communities, setCommunities] = useState([]);
   const [myIds, setMyIds] = useState(new Set());
@@ -110,7 +110,11 @@ export default function CommunitiesScreen({ onBack, onCreatePress }) {
     const isCreator = community.created_by === userId;
     const color = CATEGORY_COLORS[community.category] || '#94a3b8';
     return (
-      <View style={styles.card}>
+      <TouchableOpacity style={styles.card} onPress={() => {
+        if (joined || !isCreator) {
+          onCommunityPress(community, joined);
+        }
+      }}>
         <View style={[styles.cardAvatar, { backgroundColor: color + '22' }]}>
           <Text style={[styles.cardAvatarText, { color }]}>{community.name[0].toUpperCase()}</Text>
         </View>
@@ -126,19 +130,19 @@ export default function CommunitiesScreen({ onBack, onCreatePress }) {
         </View>
         <View style={styles.cardActions}>
           {isCreator ? (
-            <TouchableOpacity style={styles.deleteBtn} onPress={() => deleteCommunity(community)}>
+            <TouchableOpacity style={styles.deleteBtn} onPress={(e) => { e.stopPropagation(); deleteCommunity(community); }}>
               <Text style={styles.deleteText}>🗑</Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={[styles.joinBtn, joined && styles.leaveBtn]}
-              onPress={() => toggleMembership(community)}
+              onPress={(e) => { e.stopPropagation(); joined ? toggleMembership(community) : onCommunityPress(community, false); }}
             >
-              <Text style={[styles.joinText, joined && styles.leaveText]}>{joined ? 'Leave' : 'Join'}</Text>
+              <Text style={[styles.joinText, joined && styles.leaveText]}>{joined ? 'Leave' : 'View'}</Text>
             </TouchableOpacity>
           )}
         </View>
-      </View>
+      </TouchableOpacity>
     );
   }
 
