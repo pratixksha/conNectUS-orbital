@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, Alert, KeyboardAvoidingView, Platform
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import * as ImagePicker from 'expo-image-picker';
 
 const CATEGORIES = ['Study', 'Sports', 'Music', 'Gaming', 'Food', 'Arts', 'Tech', 'Other'];
 const CATEGORY_COLORS = {
@@ -17,14 +18,47 @@ export default function CreateCommunityScreen({ onBack, onCreated }) {
   const [name, setName] = useState('');
   const [desc, setDesc] = useState('');
   const [category, setCategory] = useState('Other');
+  const [bannerUri, setBannerUri] = useState(null);
   const [creating, setCreating] = useState(false);
+
+  async function pickBanner() {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [16, 9],
+      quality: 0.8,
+    });
+
+    if (!result.canceled) {
+      setBannerUri(result.assets[0].uri);
+    }
+  }
 
   async function handleCreate() {
     if (!name.trim()) return Alert.alert('Error', 'Community name is required.');
     setCreating(true);
+
     const { data: { user } } = await supabase.auth.getUser();
+
+    let banner_url = null;
+    if (bannerUri) {
+      const ext = bannerUri.split('.').pop().toLowerCase();
+      const path = `${user.id}/${Date.now()}.${ext}`;
+      const formData = new FormData();
+      formData.append('file', { uri: bannerUri, type: `image/${ext}`, name: `banner.${ext}` });
+      const { error: uploadError } = await supabase.storage
+        .from('community-banners')
+        .upload(path, formData, { contentType: `image/${ext}` });
+      if (uploadError) {
+        console.log('Banner upload error:', uploadError.message);
+      } else {
+        const { data: urlData } = supabase.storage.from('community-banners').getPublicUrl(path);
+        banner_url = urlData.publicUrl;
+      }
+    }
+
     const { data, error } = await supabase.from('communities')
-      .insert({ name: name.trim(), description: desc.trim(), category, created_by: user.id })
+      .insert({ name: name.trim(), description: desc.trim(), category, created_by: user.id, banner_url })
       .select().single();
 
     if (error) {
@@ -48,6 +82,14 @@ export default function CreateCommunityScreen({ onBack, onCreated }) {
         </View>
 
         <ScrollView contentContainerStyle={styles.body}>
+          <Text style={styles.label}>BANNER IMAGE</Text>
+          <TouchableOpacity style={styles.bannerPicker} onPress={pickBanner}>
+            {bannerUri
+              ? <Image source={{ uri: bannerUri }} style={styles.bannerPreview} />
+              : <Text style={styles.bannerPickerText}>📷 Tap to add a banner</Text>
+            }
+          </TouchableOpacity>
+
           <Text style={styles.label}>NAME *</Text>
           <TextInput
             style={styles.input}
@@ -102,6 +144,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '700' },
   body: { padding: 20, paddingBottom: 40 },
   label: { fontSize: 11, fontWeight: '700', color: '#94a3b8', letterSpacing: 0.8, marginBottom: 8, marginTop: 20 },
+  bannerPicker: { height: 120, backgroundColor: '#f8fafc', borderRadius: 12, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  bannerPreview: { width: '100%', height: '100%' },
+  bannerPickerText: { color: '#94a3b8', fontSize: 15 },
   input: { backgroundColor: '#f8fafc', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: '#1e293b' },
   chipsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chip: { paddingHorizontal: 16, paddingVertical: 9, borderRadius: 20, borderWidth: 1, borderColor: '#e2e8f0', backgroundColor: '#fff' },
