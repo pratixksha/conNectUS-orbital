@@ -61,7 +61,6 @@ export default function CommunityHomeScreen({ community, onBack }) {
             .select('*, profiles(full_name, avatar_url), community_replies(*, profiles(full_name)), community_post_likes(user_id)')
             .eq('community_id', community.id)
             .order('created_at', { ascending: false });
-        console.log('Posts:', JSON.stringify(data, null, 2));
         setPosts(data || []);
         setLoading(false);
     }
@@ -107,9 +106,7 @@ export default function CommunityHomeScreen({ community, onBack }) {
 
             const response = await fetch(postImageUri);
             const blob = await response.blob();
-            console.log('URI:', postImageUri);
-            console.log('Blob size:', blob.size);
-            console.log('Blob type:', blob.type);
+            
 
             const { error } = await supabase.storage
                 .from('post-images')
@@ -119,7 +116,7 @@ export default function CommunityHomeScreen({ community, onBack }) {
 
 
             if (error) {
-                console.log(error);
+                
                 Alert.alert('Upload failed');
                 setPosting(false);
                 return;
