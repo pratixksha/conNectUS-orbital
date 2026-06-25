@@ -100,18 +100,31 @@ function applyFilters(events, f) {
         if (f.dateRange !== 'any') {
             const eventDate = new Date(event.date);
             const now = new Date();
-            const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
             if (f.dateRange === 'today') {
-                const end = new Date(startOfDay); end.setDate(end.getDate() + 1);
-                if (eventDate < startOfDay || eventDate >= end) return false;
+                const isToday =
+                    eventDate.getFullYear() === now.getFullYear() &&
+                    eventDate.getMonth() === now.getMonth() &&
+                    eventDate.getDate() === now.getDate();
+                if (!isToday) return false;
+
             } else if (f.dateRange === 'this_week') {
-                const end = new Date(startOfDay); end.setDate(end.getDate() + 7);
-                if (eventDate < startOfDay || eventDate >= end) return false;
+                const dayOfWeek = now.getDay();
+                const startOfWeek = new Date(now);
+                startOfWeek.setDate(now.getDate() - dayOfWeek);
+                startOfWeek.setHours(0, 0, 0, 0);
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 7);
+                if (eventDate < startOfWeek || eventDate >= endOfWeek) return false;
+
             } else if (f.dateRange === 'this_month') {
-                const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-                if (eventDate < startOfDay || eventDate >= end) return false;
+                const isSameMonth =
+                    eventDate.getFullYear() === now.getFullYear() &&
+                    eventDate.getMonth() === now.getMonth();
+                if (!isSameMonth) return false;
             }
         }
+
         return true;
     });
 }
