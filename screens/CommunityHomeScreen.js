@@ -14,6 +14,18 @@ const CATEGORY_COLORS = {
     Tech: '#06b6d4', Other: '#94a3b8',
 };
 
+export function timeAgo(dateStr) {
+    const diff = (Date.now() - new Date(dateStr)) / 1000;
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
+}
+
+export function extractHashtags(content) {
+    return [...content.matchAll(/#(\w+)/g)].map(m => m[1]);
+}
+
 export default function CommunityHomeScreen({ community, onBack }) {
     const [userId, setUserId] = useState(null);
     const [communityData, setCommunityData] = useState(community);
@@ -79,7 +91,8 @@ export default function CommunityHomeScreen({ community, onBack }) {
 
         setPosting(true);
 
-        const hashtags = [...newPost.matchAll(/#(\w+)/g)].map(m => m[1]);
+        //const hashtags = [...newPost.matchAll(/#(\w+)/g)].map(m => m[1]);
+        const hashtags = extractHashtags(newPost);
 
         let imageUrl = null;
 
@@ -160,13 +173,13 @@ export default function CommunityHomeScreen({ community, onBack }) {
         ]);
     }
 
-    function timeAgo(dateStr) {
-        const diff = (Date.now() - new Date(dateStr)) / 1000;
-        if (diff < 60) return 'just now';
-        if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-        if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-        return `${Math.floor(diff / 86400)}d ago`;
-    }
+    /* function timeAgo(dateStr) {
+         const diff = (Date.now() - new Date(dateStr)) / 1000;
+         if (diff < 60) return 'just now';
+         if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+         if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+         return `${Math.floor(diff / 86400)}d ago`;
+     } */
 
     function PostCard({ post }) {
         const liked = post.community_post_likes.some(l => l.user_id === userId);
