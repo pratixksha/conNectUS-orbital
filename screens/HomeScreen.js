@@ -13,6 +13,10 @@ import HangoutsScreen from './HangoutsScreen';
 import ProfileScreen from './ProfileScreen';
 import FriendsScreen from './FriendsScreen';
 import ChatsScreen from './ChatsScreen';
+import CommunitiesScreen from './CommunitiesScreen';
+import CreateCommunityScreen from './CreateCommunityScreen';
+import CommunityPreviewScreen from './CommunityPreviewScreen';
+import CommunityHomeScreen from './CommunityHomeScreen';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -24,11 +28,14 @@ export default function HomeScreen({ onLogout }) {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [signedUpEvents, setSignedUpEvents] = useState([]);
   const [pendingChat, setPendingChat] = useState(null);
+  const [myCommunities, setMyCommunities] = useState([]);
+  const [selectedCommunity, setSelectedCommunity] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
       fetchProfile();
       fetchEvents();
+      fetchMyCommunities();
     }, [])
   );
 
@@ -52,6 +59,18 @@ export default function HomeScreen({ onLogout }) {
       setEvents((data || []).map(r => r.events));
     }
     setLoading(false);
+  }
+
+  async function fetchMyCommunities() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('community_members')
+        .select('communities(*)')
+        .eq('user_id', user.id)
+        .limit(3);
+      setMyCommunities((data || []).map(r => r.communities));
+    }
   }
 
 
@@ -82,6 +101,36 @@ export default function HomeScreen({ onLogout }) {
 
   if (currentScreen === 'hangouts') {
     return <HangoutsScreen onBack={() => setCurrentScreen('home')} />;
+  }
+
+  if (currentScreen === 'communities') {
+    return <CommunitiesScreen
+      onBack={() => setCurrentScreen('home')}
+      onCreatePress={() => setCurrentScreen('createCommunity')}
+      onCommunityPress={(community, isJoined) => {
+        setSelectedCommunity(community);
+        setCurrentScreen(isJoined ? 'communityHome' : 'communityPreview');
+      }}
+    />;
+  }
+
+  if (currentScreen === 'communityPreview' && selectedCommunity) {
+    return <CommunityPreviewScreen
+      community={selectedCommunity}
+      onBack={() => setCurrentScreen('communities')}
+      onJoined={() => setCurrentScreen('communities')}
+    />;
+  }
+
+  if (currentScreen === 'communityHome' && selectedCommunity) {
+    return <CommunityHomeScreen
+      community={selectedCommunity}
+      onBack={() => setCurrentScreen('communities')}
+    />;
+  }
+
+  if (currentScreen === 'createCommunity') {
+    return <CreateCommunityScreen onBack={() => setCurrentScreen('communities')} onCreated={() => setCurrentScreen('communities')} />;
   }
 
   if (currentScreen === 'profile') {
@@ -170,12 +219,29 @@ export default function HomeScreen({ onLogout }) {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>My Communities</Text>
-              <TouchableOpacity><Text style={styles.seeAll}>See all</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => navigate('communities')}>
+                <Text style={styles.seeAll}>See all</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.placeholderCard}>
-              <Text style={styles.placeholderText}>Communities coming soon!</Text>
-            </View>
+            {myCommunities.length === 0 ? (
+              <View style={styles.placeholderCard}>
+                <Text style={styles.placeholderText}>You haven't joined any communities yet!</Text>
+              </View>
+            ) : (
+              myCommunities.map(c => (
+                <TouchableOpacity key={c.id} style={styles.eventCard} onPress={() => {
+                  setSelectedCommunity(c);
+                  setCurrentScreen('communityHome');
+                }}>
+                  <View style={styles.eventInfo}>
+                    <Text style={styles.eventTitle}>{c.name}</Text>
+                    <Text style={styles.eventMeta}>{c.category} · {c.member_count || 0} members</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
+
 
           {/* People You Might Know */}
           <View style={styles.section}>
@@ -230,7 +296,7 @@ export default function HomeScreen({ onLogout }) {
             </TouchableOpacity>
 
             <Text style={styles.navSection}>SOCIAL</Text>
-            <TouchableOpacity style={styles.navItem} onPress={() => navigate('home')}>
+            <TouchableOpacity style={styles.navItem} onPress={() => navigate('communities')}>
               <Text style={styles.navIcon}>👥</Text>
               <Text style={styles.navText}>Communities</Text>
             </TouchableOpacity>
