@@ -22,14 +22,8 @@ const DATE_OPTIONS = [
 ];
 
 const LOCATIONS = [
-    'UTown',
-    'Computing',
-    'Engineering',
-    'Science',
-    'Residential',
-    'Sports',
-    'UCC',
-    'Others',
+    'UTown', 'Computing', 'Engineering', 'Science',
+    'Residential', 'Sports', 'UCC', 'Others',
 ];
 
 const DEFAULT_FILTERS = { categories: [], dateRange: 'any', locations: [] };
@@ -43,71 +37,39 @@ function countActive(f) {
 function applyFilters(events, f) {
     return events.filter(event => {
         if (f.categories.length > 0 && !f.categories.includes(event.category)) return false;
+
         if (f.locations.length > 0) {
             const loc = (event.location || '').toLowerCase();
-
             const matches = f.locations.some(filter => {
                 switch (filter) {
-                    case 'UTown':
-                        return loc.includes('utown');
-
-                    case 'Computing':
-                        return loc.includes('com1') ||
-                            loc.includes('computing');
-
-                    case 'Engineering':
-                        return loc.includes('engineering') ||
-                            loc.includes('i3');
-
-                    case 'Science':
-                        return loc.includes('science') ||
-                            loc.includes('s16');
-
-                    case 'Residential':
-                        return loc.includes('capt') ||
-                            loc.includes('college');
-
-                    case 'Sports':
-                        return loc.includes('mpsh') ||
-                            loc.includes('court');
-
-                    case 'UCC':
-                        return loc.includes('university cultural centre');
-
-                    case 'Others':
-                        return !(
-                            loc.includes('utown') ||
-                            loc.includes('com1') ||
-                            loc.includes('computing') ||
-                            loc.includes('engineering') ||
-                            loc.includes('i3') ||
-                            loc.includes('science') ||
-                            loc.includes('s16') ||
-                            loc.includes('capt') ||
-                            loc.includes('college') ||
-                            loc.includes('mpsh') ||
-                            loc.includes('court') ||
-                            loc.includes('university cultural centre')
-                        );
-
-                    default:
-                        return false;
+                    case 'UTown': return loc.includes('utown');
+                    case 'Computing': return loc.includes('com1') || loc.includes('computing');
+                    case 'Engineering': return loc.includes('engineering') || loc.includes('i3');
+                    case 'Science': return loc.includes('science') || loc.includes('s16');
+                    case 'Residential': return loc.includes('capt') || loc.includes('college');
+                    case 'Sports': return loc.includes('mpsh') || loc.includes('court');
+                    case 'UCC': return loc.includes('university cultural centre');
+                    case 'Others': return !(
+                        loc.includes('utown') || loc.includes('com1') || loc.includes('computing') ||
+                        loc.includes('engineering') || loc.includes('i3') || loc.includes('science') ||
+                        loc.includes('s16') || loc.includes('capt') || loc.includes('college') ||
+                        loc.includes('mpsh') || loc.includes('court') || loc.includes('university cultural centre')
+                    );
+                    default: return false;
                 }
             });
-
             if (!matches) return false;
         }
+
         if (f.dateRange !== 'any') {
             const eventDate = new Date(event.date);
             const now = new Date();
-
             if (f.dateRange === 'today') {
                 const isToday =
                     eventDate.getFullYear() === now.getFullYear() &&
                     eventDate.getMonth() === now.getMonth() &&
                     eventDate.getDate() === now.getDate();
                 if (!isToday) return false;
-
             } else if (f.dateRange === 'this_week') {
                 const dayOfWeek = now.getDay();
                 const startOfWeek = new Date(now);
@@ -116,7 +78,6 @@ function applyFilters(events, f) {
                 const endOfWeek = new Date(startOfWeek);
                 endOfWeek.setDate(startOfWeek.getDate() + 7);
                 if (eventDate < startOfWeek || eventDate >= endOfWeek) return false;
-
             } else if (f.dateRange === 'this_month') {
                 const isSameMonth =
                     eventDate.getFullYear() === now.getFullYear() &&
@@ -171,7 +132,6 @@ export default function EventsScreen({ onBack }) {
     const [events, setEvents] = useState([]);
     const [signedUpEvents, setSignedUpEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-
     const [filters, setFilters] = useState(DEFAULT_FILTERS);
     const [draft, setDraft] = useState(DEFAULT_FILTERS);
     const [openPanel, setOpenPanel] = useState(null);
@@ -223,49 +183,54 @@ export default function EventsScreen({ onBack }) {
 
     return (
         <SafeAreaView style={styles.container}>
-            {onBack && (
-                <TouchableOpacity onPress={onBack} style={{ padding: 16 }}>
-                    <Text style={{ color: PRIMARY, fontSize: 16 }}>← Back</Text>
-                </TouchableOpacity>
-            )}
-
-            <Text style={styles.header}>Events</Text>
-
-            {/* Filter bar */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={{ marginBottom: 12 }}
-                contentContainerStyle={chipStyles.bar}
-            >
-                {countActive(filters) > 0 && (
-                    <TouchableOpacity style={chipStyles.clearBtn} onPress={() => setFilters(DEFAULT_FILTERS)}>
-                        <Text style={chipStyles.clearText}>Clear all</Text>
+            {/* Header — always stays at top */}
+            <View style={styles.topSection}>
+                {onBack && (
+                    <TouchableOpacity onPress={onBack} style={styles.backBtn}>
+                        <Text style={styles.backText}>← Back</Text>
                     </TouchableOpacity>
                 )}
-                <Chip
-                    label="Category"
-                    active={filters.categories.length > 0}
-                    badge={filters.categories.length || undefined}
-                    onPress={() => openWith('category')}
-                />
-                <Chip
-                    label={dateLabel}
-                    active={filters.dateRange !== 'any'}
-                    onPress={() => openWith('date')}
-                />
-                <Chip
-                    label="Campus Area"
-                    active={filters.locations.length > 0}
-                    badge={filters.locations.length || undefined}
-                    onPress={() => openWith('location')}
-                />
-            </ScrollView>
+                <Text style={styles.header}>Events</Text>
 
-            {/* Events list */}
+                {/* Filter chips — fixed height, always below header */}
+                <View style={styles.chipBar}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={chipStyles.bar}
+                    >
+                        {countActive(filters) > 0 && (
+                            <TouchableOpacity style={chipStyles.clearBtn} onPress={() => setFilters(DEFAULT_FILTERS)}>
+                                <Text style={chipStyles.clearText}>Clear all</Text>
+                            </TouchableOpacity>
+                        )}
+                        <Chip
+                            label="Category"
+                            active={filters.categories.length > 0}
+                            badge={filters.categories.length || undefined}
+                            onPress={() => openWith('category')}
+                        />
+                        <Chip
+                            label={dateLabel}
+                            active={filters.dateRange !== 'any'}
+                            onPress={() => openWith('date')}
+                        />
+                        <Chip
+                            label="Campus Area"
+                            active={filters.locations.length > 0}
+                            badge={filters.locations.length || undefined}
+                            onPress={() => openWith('location')}
+                        />
+                    </ScrollView>
+                </View>
+            </View>
+
+            {/* Events list — takes remaining space */}
             <FlatList
+                style={{ flex: 1 }}
                 data={visibleEvents}
                 keyExtractor={item => item.id}
+                contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 }}
                 ListEmptyComponent={
                     <Text style={styles.empty}>No events match your filters.</Text>
                 }
@@ -341,52 +306,46 @@ export default function EventsScreen({ onBack }) {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#fff', paddingTop: 16 },
-    header: { fontSize: 28, fontWeight: 'bold', marginBottom: 16, paddingHorizontal: 16 },
+    container: { flex: 1, backgroundColor: '#fff' },
+    topSection: { backgroundColor: '#fff' },
+    backBtn: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+    backText: { color: PRIMARY, fontSize: 16 },
+    header: { fontSize: 28, fontWeight: 'bold', paddingHorizontal: 16, marginTop: 4, marginBottom: 8 },
+    chipBar: { height: 52, borderBottomWidth: 1, borderBottomColor: BORDER },
     card: { backgroundColor: SURFACE, borderRadius: 12, padding: 16, marginBottom: 12, marginHorizontal: 16 },
     title: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
     meta: { fontSize: 13, color: '#666', marginBottom: 2 },
     desc: { fontSize: 14, marginTop: 8, marginBottom: 12 },
     btn: { backgroundColor: PRIMARY, borderRadius: 8, padding: 10, alignItems: 'center' },
     btnText: { color: '#fff', fontWeight: '600' },
-    empty: { textAlign: 'center', color: '#999', marginTop: 40, fontSize: 15 },
+    empty: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 15 },
 });
 
 const chipStyles = StyleSheet.create({
     bar: {
         paddingHorizontal: 16,
-        paddingBottom: 12,
-        paddingTop: 6,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
     },
-
     chip: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        minHeight: 38,
+        height: 36,
         paddingHorizontal: 16,
         borderRadius: 20,
         borderWidth: 1,
         borderColor: BORDER,
         backgroundColor: '#fff',
     },
-
-    chipActive: {
-        backgroundColor: PRIMARY,
-        borderColor: PRIMARY,
-    },
-
-    text: {
-        fontSize: 14,
-        color: '#333',
-    },
-
-    textActive: {
-        color: '#fff',
-    },
+    chipActive: { backgroundColor: PRIMARY, borderColor: PRIMARY },
+    text: { fontSize: 14, color: '#333' },
+    textActive: { color: '#fff' },
+    clearBtn: { justifyContent: 'center', paddingHorizontal: 4 },
+    clearText: { fontSize: 14, color: '#666' },
+    badge: { marginLeft: 4, backgroundColor: '#fff', borderRadius: 10, paddingHorizontal: 5 },
+    badgeText: { fontSize: 11, color: PRIMARY, fontWeight: '700' },
 });
 
 const panelStyles = StyleSheet.create({
