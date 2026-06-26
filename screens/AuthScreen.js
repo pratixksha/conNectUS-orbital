@@ -82,6 +82,28 @@ function PickerField({ label, options, value, onSelect, placeholder }) {
   );
 }
 
+export function isNUSEmail(e) {
+  return e.endsWith('@u.nus.edu') || e.endsWith('@nus.edu.sg');
+}
+
+export function toggleInterest(prev, item) {
+  return prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item];
+}
+export function validateStep1({ email, pw, pw2 }) {
+  if (!email || !pw || !pw2) return { valid: false, reason: 'missing_fields' };
+  if (!isNUSEmail(email)) return { valid: false, reason: 'invalid_email' };
+  if (pw.length < 8) return { valid: false, reason: 'weak_password' };
+  if (pw !== pw2) return { valid: false, reason: 'password_mismatch' };
+  return { valid: true };
+}
+
+export function validateStep2({ name, faculty, year, goal }) {
+  if (!name || !faculty || !year || !goal) return { valid: false, reason: 'missing_fields' };
+  return { valid: true };
+}
+
+
+
 // Main Screen
 
 export default function AuthScreen({ navigation = null }) {
@@ -103,16 +125,10 @@ export default function AuthScreen({ navigation = null }) {
   const [goal, setGoal] = useState('');
   const [interests, setInterests] = useState([]);
 
-  function isNUSEmail(e) {
-    return e.endsWith('@u.nus.edu') || e.endsWith('@nus.edu.sg');
-  }
-
   /* Tap a chip that's not selected → add it to the array
      Tap a chip that's already selected → remove it from the array */  
-  function toggleInterest(item) {
-    setInterests((prev) =>
-      prev.includes(item) ? prev.filter((x) => x !== item) : [...prev, item]
-    );
+  function handleToggleInterest(item) {
+    setInterests((prev) => toggleInterest(prev, item));
   }
 
   // Login 
@@ -142,15 +158,26 @@ export default function AuthScreen({ navigation = null }) {
 
   // Signup steps 
   function goStep2() {
-    if (!email || !pw || !pw2) { Alert.alert('Missing fields', 'Please fill in all fields.'); return; }
-    if (!isNUSEmail(email)) { Alert.alert('NUS email required', 'Please use your @u.nus.edu or @nus.edu.sg email.'); return; }
-    if (pw.length < 8) { Alert.alert('Weak password', 'Password must be at least 8 characters.'); return; }
-    if (pw !== pw2) { Alert.alert('Passwords do not match', 'Please re-enter your password.'); return; }
+    const result = validateStep1({ email, pw, pw2 });
+    if (!result.valid) {
+      const messages = {
+        missing_fields: ['Missing fields', 'Please fill in all fields.'],
+        invalid_email: ['NUS email required', 'Please use your @u.nus.edu or @nus.edu.sg email.'],
+        weak_password: ['Weak password', 'Password must be at least 8 characters.'],
+        password_mismatch: ['Passwords do not match', 'Please re-enter your password.'],
+      };
+      Alert.alert(...messages[result.reason]);
+      return;
+    }
     setStep(2);
   }
 
   function goStep3() {
-    if (!name || !faculty || !year || !goal) { Alert.alert('Missing fields', 'Please complete all fields.'); return; }
+    const result = validateStep2({ name, faculty, year, goal });
+    if (!result.valid) {
+      Alert.alert('Missing fields', 'Please complete all fields.');
+      return;
+    }
     setStep(3);
   }
 
@@ -330,7 +357,7 @@ export default function AuthScreen({ navigation = null }) {
                     <TouchableOpacity
                       key={item}
                       style={[styles.chip, interests.includes(item) && styles.chipSelected]}
-                      onPress={() => toggleInterest(item)}
+                      onPress={() => handleToggleInterest(item)}
                     >
                       <Text style={[styles.chipText, interests.includes(item) && styles.chipTextSelected]}>
                         {item}

@@ -13,6 +13,21 @@ const CATEGORY_COLORS = {
   Tech: '#06b6d4', Other: '#94a3b8',
 };
 
+export function filterCommunities(communities, search, activeCategory) {
+  return communities.filter(c => {
+    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
+    const matchCat = activeCategory === 'All' || c.category === activeCategory;
+    return matchSearch && matchCat;
+  });
+}
+
+export function splitCommunities(filtered, myIds) {
+  return {
+    myCommunities: filtered.filter(c => myIds.has(c.id)),
+    discover: filtered.filter(c => !myIds.has(c.id)),
+  };
+}
+
 export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPress }) {
   const [userId, setUserId] = useState(null);
   const [communities, setCommunities] = useState([]);
@@ -85,13 +100,16 @@ export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPr
     );
   }
 
-  const filtered = communities.filter(c => {
+  /*const filtered = communities.filter(c => {
     const matchSearch = c.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = activeCategory === 'All' || c.category === activeCategory;
     return matchSearch && matchCat;
   });
   const myCommunities = filtered.filter(c => myIds.has(c.id));
-  const discover = filtered.filter(c => !myIds.has(c.id));
+  const discover = filtered.filter(c => !myIds.has(c.id)); */
+
+  const filtered = filterCommunities(communities, search, activeCategory);
+  const { myCommunities, discover } = splitCommunities(filtered, myIds);
 
   function CategoryChip({ label, selected, onPress }) {
     const color = CATEGORY_COLORS[label] || '#3b82f6';
