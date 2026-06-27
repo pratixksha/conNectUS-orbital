@@ -741,7 +741,7 @@ export default function HangoutsScreen({ onBack }) {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onBack} style={styles.menuBtn}>
-            <Text style={styles.menuIcon}>☰</Text>
+            <Text style={styles.menuIcon}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.appName}>
             con<Text style={{ color: '#ea580c' }}>N</Text>ect<Text style={{ color: '#ea580c' }}>US</Text>
@@ -856,8 +856,8 @@ const styles = StyleSheet.create({
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   container: { flex: 1, backgroundColor: '#fff' },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
-  menuBtn: { width: 32 },
-  menuIcon: { fontSize: 22 },
+  menuBtn: { width: 60 },
+  menuIcon: { fontSize: 15, color: '#1d4ed8', fontWeight: '600' },
   appName: { fontSize: 20, fontWeight: 'bold', color: '#1d4ed8' },
   scroll: { flex: 1, paddingHorizontal: 16 },
   mapPreviewCard: { marginTop: 16, borderRadius: 16, overflow: 'hidden', borderWidth: 2, borderColor: '#86efac', backgroundColor: '#f0fdf4', height: 180 },
