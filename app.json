@@ -16,7 +16,12 @@
         "backgroundColor": "#E6F4FE"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.amritaa.connectus"
+      "package": "com.amritaa.connectus",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAvaFuYp7CtQVLmD6h6w4xCqXxDmCRtMPc"
+        }
+      }
     },
     "web": {
       "output": "static"
