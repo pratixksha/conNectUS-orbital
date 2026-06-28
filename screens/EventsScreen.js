@@ -28,13 +28,13 @@ const LOCATIONS = [
 
 const DEFAULT_FILTERS = { categories: [], dateRange: 'any', locations: [] };
 
-function countActive(f) {
+export function countActive(f) {
     return (f.categories.length > 0 ? 1 : 0) +
         (f.dateRange !== 'any' ? 1 : 0) +
         (f.locations.length > 0 ? 1 : 0);
 }
 
-function applyFilters(events, f) {
+export function applyFilters(events, f) {
     return events.filter(event => {
         if (f.categories.length > 0 && !f.categories.includes(event.category)) return false;
 
