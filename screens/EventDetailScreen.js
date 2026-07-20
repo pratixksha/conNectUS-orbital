@@ -1,16 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import {
     View, Text, ScrollView, TouchableOpacity,
-    StyleSheet, ActivityIndicator, Alert, Image 
+    StyleSheet, ActivityIndicator, Alert, Image
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import { scheduleReminder, cancelReminder } from '../lib/notifications';
+import { exportToCalendar } from '../lib/calendar';
+
+const LEAD_OPTIONS = [
+    { label: '30 min before', minutes: 30 },
+    { label: '1 hour before', minutes: 60 },
+    { label: '1 day before', minutes: 1440 },
+];
 
 export default function EventDetailScreen({ event, onBack }) {
     const [attendees, setAttendees] = useState([]);
     const [signedUp, setSignedUp] = useState(false);
     const [userId, setUserId] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [reminderMinutes, setReminderMinutes] = useState(null);
 
     useEffect(() => {
         getUser();
@@ -46,12 +55,32 @@ export default function EventDetailScreen({ event, onBack }) {
         if (signedUp) {
             await supabase.from('event_signups').delete()
                 .eq('event_id', event.id).eq('user_id', userId);
+            await cancelReminder(event.id, userId);
             setSignedUp(false);
+            setReminderMinutes(null);
         } else {
             await supabase.from('event_signups').insert({ event_id: event.id, user_id: userId });
             setSignedUp(true);
         }
         fetchAttendees();
+    }
+
+    async function handleSetReminder(minutes) {
+        const { error } = await scheduleReminder(event.id, userId, event.date, minutes);
+        if (error) {
+            Alert.alert('Could not set reminder', error.message);
+            return;
+        }
+        setReminderMinutes(minutes);
+    }
+
+    async function handleAddToCalendar() {
+        try {
+            await exportToCalendar(event);
+            Alert.alert('Added', 'Event added to your calendar.');
+        } catch (e) {
+            Alert.alert('Could not add event', e.message);
+        }
     }
 
     function formatDate(dateStr) {
@@ -69,8 +98,8 @@ export default function EventDetailScreen({ event, onBack }) {
 
             <ScrollView>
                 {event.image_url ? (
-                    <Image 
-                        source={{ uri: event.image_url }} 
+                    <Image
+                        source={{ uri: event.image_url }}
                         style={styles.image}
                         resizeMode="cover"
                     />
@@ -79,7 +108,6 @@ export default function EventDetailScreen({ event, onBack }) {
                         <Text style={styles.imageText}>📅</Text>
                     </View>
                 )}
-                
 
                 <View style={styles.content}>
                     <Text style={styles.title}>{event.title}</Text>
@@ -92,6 +120,33 @@ export default function EventDetailScreen({ event, onBack }) {
                     <View style={styles.row}>
                         <Text style={styles.meta}>👥 {attendees.length} signed up</Text>
                     </View>
+
+                    <TouchableOpacity style={styles.calendarBtn} onPress={handleAddToCalendar}>
+                        <Text style={styles.calendarBtnText}>📆 Add to Calendar</Text>
+                    </TouchableOpacity>
+
+                    {signedUp && (
+                        <View style={styles.reminderSection}>
+                            <Text style={styles.sectionHeader}>Remind me</Text>
+                            <View style={styles.reminderRow}>
+                                {LEAD_OPTIONS.map(opt => (
+                                    <TouchableOpacity
+                                        key={opt.minutes}
+                                        style={[
+                                            styles.reminderChip,
+                                            reminderMinutes === opt.minutes && styles.reminderChipActive,
+                                        ]}
+                                        onPress={() => handleSetReminder(opt.minutes)}
+                                    >
+                                        <Text style={[
+                                            styles.reminderChipText,
+                                            reminderMinutes === opt.minutes && styles.reminderChipTextActive,
+                                        ]}>{opt.label}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+                    )}
 
                     <Text style={styles.sectionHeader}>About</Text>
                     <Text style={styles.desc}>{event.description}</Text>
@@ -134,4 +189,12 @@ const styles = StyleSheet.create({
     btn: { margin: 16, backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
     btnWithdraw: { backgroundColor: '#dc2626' },
     btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+    calendarBtn: { marginTop: 16, borderWidth: 1, borderColor: '#2563eb', borderRadius: 10, padding: 12, alignItems: 'center' },
+    calendarBtnText: { color: '#2563eb', fontSize: 14, fontWeight: '600' },
+    reminderSection: { marginTop: 8 },
+    reminderRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    reminderChip: { borderWidth: 1, borderColor: '#ccc', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14 },
+    reminderChipActive: { backgroundColor: '#2563eb', borderColor: '#2563eb' },
+    reminderChipText: { fontSize: 13, color: '#444' },
+    reminderChipTextActive: { color: '#fff', fontWeight: '600' },
 });
