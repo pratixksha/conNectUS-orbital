@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { registerForPushNotifications } from '../lib/notifications';
 
 export default function Index() {
   const [loading, setLoading] = useState(true);
@@ -10,6 +11,7 @@ export default function Index() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
+        registerForPushNotifications(session.user.id);
         router.replace('/home');
       } else {
         router.replace('/auth');
