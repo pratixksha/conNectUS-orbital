@@ -17,6 +17,8 @@ import CommunitiesScreen from './CommunitiesScreen';
 import CreateCommunityScreen from './CreateCommunityScreen';
 import CommunityPreviewScreen from './CommunityPreviewScreen';
 import CommunityHomeScreen from './CommunityHomeScreen';
+import UserProfileScreen from './UserProfileScreen';
+import { fetchRecommendedProfiles, ProfileAvatar } from '../lib/social';
 
 
 export default function HomeScreen({ onLogout }) {
@@ -29,13 +31,19 @@ export default function HomeScreen({ onLogout }) {
   const [signedUpEvents, setSignedUpEvents] = useState([]);
   const [pendingChat, setPendingChat] = useState(null);
   const [myCommunities, setMyCommunities] = useState([]);
+  const [recommendedPeople, setRecommendedPeople] = useState([]);
   const [selectedCommunity, setSelectedCommunity] = useState(null);
+  const [selectedUserProfile, setSelectedUserProfile] = useState(null);
 
   useFocusEffect(
     React.useCallback(() => {
-      fetchProfile();
-      fetchEvents();
-      fetchMyCommunities();
+      async function loadHome() {
+        await fetchProfile();
+        fetchEvents();
+        fetchMyCommunities();
+        fetchRecommendedPeople();
+      }
+      loadHome();
     }, [])
   );
 
@@ -73,6 +81,19 @@ export default function HomeScreen({ onLogout }) {
     }
   }
 
+  async function fetchRecommendedPeople() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    try {
+      const people = await fetchRecommendedProfiles(user.id, { limit: 3 });
+      setRecommendedPeople(people);
+    } catch (err) {
+      console.error('Error fetching recommended people:', err);
+      setRecommendedPeople([]);
+    }
+  }
+
 
   function formatDate(dateStr) {
     const d = new Date(dateStr);
@@ -92,6 +113,14 @@ export default function HomeScreen({ onLogout }) {
   // Show event detail
   if (selectedEvent) {
     return <EventDetailScreen event={selectedEvent} onBack={() => { setSelectedEvent(null); fetchEvents(); }} />;
+  }
+
+  if (selectedUserProfile) {
+    return <UserProfileScreen
+      userId={selectedUserProfile}
+      onBack={() => setSelectedUserProfile(null)}
+      onOpenChat={() => setCurrentScreen('chats')}
+    />;
   }
 
   // Show events screen
@@ -246,12 +275,29 @@ export default function HomeScreen({ onLogout }) {
           {/* People You Might Know */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>People You Might Know</Text>
+              <Text style={styles.sectionTitle}>People You Might Like</Text>
               <TouchableOpacity><Text style={styles.seeAll}>See all</Text></TouchableOpacity>
             </View>
-            <View style={styles.placeholderCard}>
-              <Text style={styles.placeholderText}>Connections coming soon!</Text>
-            </View>
+            {recommendedPeople.length === 0 ? (
+              <View style={styles.placeholderCard}>
+                <Text style={styles.placeholderText}>Connections coming soon!</Text>
+              </View>
+            ) : (
+              recommendedPeople.map(person => (
+                <TouchableOpacity
+                  key={person.id}
+                  style={styles.recommendedCard}
+                  onPress={() => setSelectedUserProfile(person.id)}
+                >
+                  <ProfileAvatar profile={person} size={44} style={styles.recommendedAvatar} />
+                  <View style={styles.recommendedInfo}>
+                    <Text style={styles.recommendedName}>{person.full_name}</Text>
+                    <Text style={styles.recommendedMeta}>{person.faculty || 'NUS'} · {person.year || 'Y?'}</Text>
+                    <Text style={styles.recommendedHint}>{person.interest_overlap} shared interest{person.interest_overlap === 1 ? '' : 's'}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -345,6 +391,12 @@ const styles = StyleSheet.create({
   rsvpText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   placeholderCard: { backgroundColor: '#f8fafc', borderRadius: 12, padding: 20, alignItems: 'center' },
   placeholderText: { color: '#999', fontSize: 14 },
+  recommendedCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', borderRadius: 12, padding: 14, marginBottom: 10 },
+  recommendedAvatar: { marginRight: 12 },
+  recommendedInfo: { flex: 1 },
+  recommendedName: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  recommendedMeta: { fontSize: 12, color: '#475569' },
+  recommendedHint: { fontSize: 12, color: '#0f766e', marginTop: 4 },
   // Sidebar
   overlay: { flex: 1, flexDirection: 'row' },
   overlayBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },

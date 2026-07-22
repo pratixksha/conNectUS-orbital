@@ -10,6 +10,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { searchPlaces, getPlaceDetails } from '../lib/locationSearch';
+import { getHangoutsMutualInfo } from '../lib/social';
 
 const VIBES = ['Sports', 'Chill', 'Food', 'Study', 'Music', 'Gaming', 'Other'];
 const CAPACITY_OPTIONS = [2, 3, 4, 5, 8, 10];
@@ -116,6 +117,8 @@ export default function HangoutsScreen({ onBack }) {
   const [loading, setLoading] = useState(true);
   const [location, setLocation] = useState(null);
   const [selectedHangout, setSelectedHangout] = useState(null);
+  const [selectedHangoutMutualNames, setSelectedHangoutMutualNames] = useState([]);
+  const [showHangoutMutuals, setShowHangoutMutuals] = useState(false);
   const [showDropPin, setShowDropPin] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [mapFocus, setMapFocus] = useState(null);
@@ -205,27 +208,62 @@ export default function HangoutsScreen({ onBack }) {
     ]);
 
     let enrichedActive = [];
+    const allHangoutIds = new Set();
     if (!activeRes.error) {
       enrichedActive = await enrichHangouts(activeRes.data || []);
-      setAllHangouts(enrichedActive);
+      enrichedActive.forEach(h => allHangoutIds.add(h.id));
     }
 
+    let myHangoutsCombined = [];
     if (!joinedRes.error) {
       const joined = (joinedRes.data || []).map(r => r.hangouts).filter(Boolean);
       const withProfiles = await enrichHangouts(joined);
+      withProfiles.forEach(h => allHangoutIds.add(h.id));
       setJoinedIds(new Set(withProfiles.map(h => h.id)));
 
       const createdRes = await supabase.from('hangouts').select('*').eq('created_by', userId);
       const created = createdRes.data || [];
       const createdEnriched = await enrichHangouts(created);
+      createdEnriched.forEach(h => allHangoutIds.add(h.id));
+
       const combined = [...withProfiles];
       createdEnriched.forEach(h => {
         if (!combined.find(c => c.id === h.id)) combined.push(h);
       });
-      setMyHangouts(combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+      myHangoutsCombined = combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
+
+    const mutualInfo = await getHangoutsMutualInfo(userId, Array.from(allHangoutIds));
+    enrichedActive = enrichedActive.map(h => ({
+      ...h,
+      mutual_count: mutualInfo[h.id]?.count || 0,
+      mutual_names: mutualInfo[h.id]?.names || [],
+    }));
+    myHangoutsCombined = myHangoutsCombined.map(h => ({
+      ...h,
+      mutual_count: mutualInfo[h.id]?.count || 0,
+      mutual_names: mutualInfo[h.id]?.names || [],
+    }));
+
+    setAllHangouts(enrichedActive);
+    setMyHangouts(myHangoutsCombined);
     setLoading(false);
     return enrichedActive;
+  }
+
+  async function openMutualsModal(hangout) {
+    setSelectedHangout(hangout);
+    let mutualNames = hangout.mutual_names || [];
+    if (!mutualNames.length && hangout.mutual_count > 0) {
+      try {
+        const info = await getHangoutsMutualInfo(userId, [hangout.id]);
+        mutualNames = info[hangout.id]?.names || [];
+      } catch (err) {
+        console.error('Error loading mutual names:', err);
+      }
+    }
+    setSelectedHangoutMutualNames(mutualNames);
+    setShowHangoutMutuals(true);
   }
 
   function openMapAtHangout(hangout) {
@@ -409,9 +447,15 @@ export default function HangoutsScreen({ onBack }) {
       <View style={styles.detailSheet}>
         <View style={styles.sheetHandle} />
         <View style={styles.detailHeader}>
-          <Text style={styles.detailTitle}>{hangout.title || hangout.location_name}</Text>
-          <View style={[styles.vibePill, { backgroundColor: vibeColor + '22' }]}>
-            <Text style={[styles.vibePillText, { color: vibeColor }]}>{hangout.vibe}</Text>
+          <View style={styles.detailHeaderTitleRow}>
+            <Text style={styles.detailTitle}>{hangout.title || hangout.location_name}</Text>
+            {hangout.mutual_count > 0 && (
+              <TouchableOpacity style={styles.mutualTag} onPress={() => openMutualsModal(hangout)}>
+                <Text style={styles.mutualTagText}>
+                  {hangout.mutual_count} friend{hangout.mutual_count === 1 ? '' : 's'} joining
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -437,7 +481,6 @@ export default function HangoutsScreen({ onBack }) {
           <Text style={styles.detailIcon}>👤</Text>
           <Text style={styles.detailRowText}>by {hangout.profiles?.full_name || 'Someone'}</Text>
         </View>
-
         {!active && (
           <View style={styles.expiredBadge}>
             <Text style={styles.expiredBadgeText}>This hangout has already started</Text>
@@ -450,6 +493,22 @@ export default function HangoutsScreen({ onBack }) {
         )}
 
         {hangout.details ? <Text style={styles.detailDesc}>{hangout.details}</Text> : null}
+
+        {showHangoutMutuals && selectedHangout?.id === hangout.id && (
+          <View style={styles.mutualSection}>
+            <Text style={styles.mutualSectionTitle}>Friends attending</Text>
+            {selectedHangoutMutualNames.length > 0 ? (
+              selectedHangoutMutualNames.map((name, index) => (
+                <Text key={index} style={styles.mutualListItem}>• {name}</Text>
+              ))
+            ) : (
+              <Text style={styles.mutualEmpty}>No friends attending yet.</Text>
+            )}
+            <TouchableOpacity style={styles.mutualClose} onPress={() => setShowHangoutMutuals(false)}>
+              <Text style={styles.mutualCloseText}>Hide</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {!isCreator && !hasJoined && active && !isFull && (
           <TouchableOpacity style={styles.joinBtn} onPress={() => joinHangout(hangout)}>
@@ -792,6 +851,9 @@ export default function HangoutsScreen({ onBack }) {
                       {h.participant_count || 1}/{h.max_participants || 5} going · {spotsLeft} spot{spotsLeft === 1 ? '' : 's'} left
                       {dist != null ? ` · ${formatDistance(dist)}` : ''}
                     </Text>
+                    {h.mutual_count > 0 && (
+                      <Text style={styles.hangoutSmallMeta}>{h.mutual_count} friend{h.mutual_count === 1 ? '' : 's'} going</Text>
+                    )}
                     <Text style={styles.hangoutTime}>{formatHangoutTime(h.hangout_time)}</Text>
                   </View>
                 </TouchableOpacity>
@@ -839,7 +901,7 @@ export default function HangoutsScreen({ onBack }) {
           <Text style={styles.fabText}>+ Drop a pin</Text>
         </TouchableOpacity>
 
-        <Modal visible={!!selectedHangout && !showMap} transparent animationType="slide">
+        <Modal visible={!!selectedHangout && !showMap} transparent animationType="slide" presentationStyle="overFullScreen">
           <View style={styles.modalOverlay}>
             <TouchableOpacity style={styles.modalBg} onPress={() => setSelectedHangout(null)} />
             {selectedHangout && renderDetailSheet(selectedHangout, () => setSelectedHangout(null))}
@@ -874,6 +936,7 @@ const styles = StyleSheet.create({
   hangoutTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
   hangoutLocation: { fontSize: 13, color: '#444', marginBottom: 2 },
   hangoutMeta: { fontSize: 12, color: '#888' },
+  hangoutSmallMeta: { fontSize: 12, color: '#0f766e', marginTop: 4 },
   hangoutTime: { fontSize: 12, color: '#1d4ed8', marginTop: 2, fontWeight: '500' },
   creatorBadge: { fontSize: 10, color: '#1d4ed8', backgroundColor: '#dbeafe', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, fontWeight: '600' },
   fullBadge: { fontSize: 10, color: '#dc2626', backgroundColor: '#fee2e2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, fontWeight: '600' },
@@ -885,13 +948,23 @@ const styles = StyleSheet.create({
   modalBg: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   detailSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 32 },
   sheetHandle: { width: 36, height: 4, backgroundColor: '#ddd', borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
-  detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' },
-  detailTitle: { fontSize: 22, fontWeight: '700' },
+  detailHeader: { flexDirection: 'column', marginBottom: 12 },
+  detailHeaderTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  detailTitle: { fontSize: 22, fontWeight: '700', flex: 1, marginRight: 10 },
+  mutualTag: { backgroundColor: '#d1fae5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  mutualTagText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
   vibePill: { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   vibePillText: { fontSize: 12, fontWeight: '600' },
+  mutualSection: { marginTop: 14, backgroundColor: '#f8faf8', borderRadius: 16, padding: 14, borderWidth: 1, borderColor: '#d1fae5' },
+  mutualSectionTitle: { fontSize: 15, fontWeight: '700', marginBottom: 10, color: '#0f766e' },
+  mutualListItem: { fontSize: 14, color: '#334155', marginBottom: 8 },
+  mutualEmpty: { fontSize: 14, color: '#64748b', marginBottom: 10 },
+  mutualClose: { alignSelf: 'flex-end', paddingVertical: 6, paddingHorizontal: 10 },
+  mutualCloseText: { fontSize: 14, color: '#065f46', fontWeight: '700' },
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   detailIcon: { fontSize: 14, width: 22 },
   detailRowText: { fontSize: 14, color: '#444', flex: 1 },
+  linkText: { color: '#1d4ed8', textDecorationLine: 'underline' },
   detailDesc: { fontSize: 14, color: '#555', marginTop: 8, marginBottom: 4, lineHeight: 20 },
   expiredBadge: { backgroundColor: '#fef3c7', borderRadius: 8, padding: 10, marginTop: 8 },
   expiredBadgeText: { fontSize: 12, color: '#92400e' },
@@ -900,6 +973,12 @@ const styles = StyleSheet.create({
   joinBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   closeDetailBtn: { alignItems: 'center', marginTop: 12, padding: 8 },
   closeDetailText: { color: '#666', fontSize: 14 },
+  modalCard: { marginHorizontal: 24, backgroundColor: '#fff', borderRadius: 18, padding: 18, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 12, elevation: 10 },
+  modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 12 },
+  mutualOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', zIndex: 10 },
+  modalItem: { fontSize: 14, color: '#334155', marginBottom: 10 },
+  modalClose: { marginTop: 16, alignSelf: 'flex-end' },
+  modalCloseText: { color: '#1d4ed8', fontWeight: '700' },
   mapOverlay: { position: 'absolute', top: 0, left: 0, right: 0 },
   mapBackBtn: { margin: 16, alignSelf: 'flex-start', backgroundColor: '#fff', borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
   mapBackText: { fontSize: 15, fontWeight: '600', color: '#1d4ed8' },

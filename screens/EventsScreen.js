@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import { getEventsMutualInfo, fetchRecommendedEvents } from '../lib/social';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
@@ -130,8 +131,10 @@ function FilterPanel({ title, visible, onClose, onApply, children }) {
 
 export default function EventsScreen({ onBack }) {
     const [events, setEvents] = useState([]);
+    const [recommendedEvents, setRecommendedEvents] = useState([]);
     const [signedUpEvents, setSignedUpEvents] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [friendModalEvent, setFriendModalEvent] = useState(null);
     const [filters, setFilters] = useState(DEFAULT_FILTERS);
     const [draft, setDraft] = useState(DEFAULT_FILTERS);
     const [openPanel, setOpenPanel] = useState(null);
@@ -142,12 +145,30 @@ export default function EventsScreen({ onBack }) {
 
     async function fetchAll() {
         const { data: { user } } = await supabase.auth.getUser();
-        const [{ data: eventsData }, { data: signupsData }] = await Promise.all([
+        const [{ data: eventsData }, { data: signupsData }, recommended] = await Promise.all([
             supabase.from('events').select('*').order('date'),
-            supabase.from('event_signups').select('event_id').eq('user_id', user.id)
+            supabase.from('event_signups').select('event_id').eq('user_id', user.id),
+            fetchRecommendedEvents(user.id, { limit: 6 }),
         ]);
-        setEvents(eventsData || []);
-        setSignedUpEvents((signupsData || []).map(r => r.event_id));
+        const eventsList = (eventsData || []).map(event => ({
+            ...event,
+            mutual_count: 0,
+            mutual_names: [],
+        }));
+        if (eventsList.length) {
+            const mutualInfo = await getEventsMutualInfo(user.id, eventsList.map(event => event.id));
+            eventsList.forEach(event => {
+                event.mutual_count = mutualInfo[event.id]?.count || 0;
+                event.mutual_names = mutualInfo[event.id]?.names || [];
+            });
+        }
+        setEvents(eventsList);
+                const signedUp = (signupsData || []).map(r => r.event_id);
+                setSignedUpEvents(signedUp);
+                const recommendedTop = (recommended || [])
+                    .filter(e => !signedUp.includes(e.id))
+                    .slice(0, 2);
+                setRecommendedEvents(recommendedTop);
         setLoading(false);
     }
 
@@ -231,12 +252,39 @@ export default function EventsScreen({ onBack }) {
                 data={visibleEvents}
                 keyExtractor={item => item.id}
                 contentContainerStyle={{ paddingTop: 12, paddingBottom: 32 }}
+                ListHeaderComponent={
+                    recommendedEvents.length > 0 ? (
+                        <View style={styles.recommendedSection}>
+                            <Text style={styles.recommendedTitle}>Recommended for You</Text>
+                            {recommendedEvents.map((event) => (
+                                <TouchableOpacity
+                                    key={event.id}
+                                    style={styles.recommendedCard}
+                                    onPress={() => router.push(`/event/${event.id}`)}
+                                >
+                                    <Text style={styles.recommendedEventTitle}>{event.title}</Text>
+                                    <Text style={styles.recommendedEventMeta}>📍 {event.location}</Text>
+                                    <Text style={styles.recommendedEventMeta}>🗓 {formatDate(event.date)}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ) : null
+                }
                 ListEmptyComponent={
                     <Text style={styles.empty}>No events match your filters.</Text>
                 }
                 renderItem={({ item }) => (
                     <View style={styles.card}>
-                        <Text style={styles.title}>{item.title}</Text>
+                                                <Text style={styles.title}>{item.title}</Text>
+                                                {item.mutual_count > 0 && (
+                                                    <TouchableOpacity
+                                                        style={styles.mutualTagBelowTitle}
+                                                        onPress={() => setFriendModalEvent(item)}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <Text style={styles.mutualTagText}>{item.mutual_count} friend{item.mutual_count === 1 ? '' : 's'} attending</Text>
+                                                    </TouchableOpacity>
+                                                )}
                         <Text style={styles.meta}>📍 {item.location}</Text>
                         <Text style={styles.meta}>🗓 {formatDate(item.date)}</Text>
                         <Text style={styles.desc}>{item.description}</Text>
@@ -251,6 +299,27 @@ export default function EventsScreen({ onBack }) {
                     </View>
                 )}
             />
+
+            {friendModalEvent && (
+                <Modal visible transparent animationType="fade" onRequestClose={() => setFriendModalEvent(null)}>
+                    <View style={styles.modalOverlay}>
+                        <TouchableOpacity style={styles.modalOverlayBg} onPress={() => setFriendModalEvent(null)} />
+                        <View style={styles.modalCard}>
+                            <Text style={styles.modalTitle}>{friendModalEvent.title} friends attending</Text>
+                            {friendModalEvent.mutual_names?.length > 0 ? (
+                                friendModalEvent.mutual_names.map((name, index) => (
+                                    <Text key={index} style={styles.modalItem}>• {name}</Text>
+                                ))
+                            ) : (
+                                <Text style={styles.modalItem}>No friends attending yet.</Text>
+                            )}
+                            <TouchableOpacity style={styles.modalClose} onPress={() => setFriendModalEvent(null)}>
+                                <Text style={styles.modalCloseText}>Close</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </Modal>
+            )}
 
             {/* Category panel */}
             <FilterPanel title="Category" visible={openPanel === 'category'} onClose={() => setOpenPanel(null)} onApply={applyDraft}>
@@ -313,12 +382,27 @@ const styles = StyleSheet.create({
     header: { fontSize: 28, fontWeight: 'bold', paddingHorizontal: 16, marginTop: 4, marginBottom: 8 },
     chipBar: { height: 52, borderBottomWidth: 1, borderBottomColor: BORDER },
     card: { backgroundColor: SURFACE, borderRadius: 12, padding: 16, marginBottom: 12, marginHorizontal: 16 },
-    title: { fontSize: 18, fontWeight: '600', marginBottom: 4 },
+    title: { fontSize: 18, fontWeight: '600', marginBottom: 6 },
     meta: { fontSize: 13, color: '#666', marginBottom: 2 },
     desc: { fontSize: 14, marginTop: 8, marginBottom: 12 },
     btn: { backgroundColor: PRIMARY, borderRadius: 8, padding: 10, alignItems: 'center' },
     btnText: { color: '#fff', fontWeight: '600' },
     empty: { textAlign: 'center', color: '#999', marginTop: 60, fontSize: 15 },
+    mutualTag: { backgroundColor: '#d1fae5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    mutualTagBelowTitle: { alignSelf: 'flex-start', backgroundColor: '#d1fae5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 8 },
+    mutualTagText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
+    recommendedSection: { marginHorizontal: 16, marginBottom: 12 },
+    recommendedTitle: { fontSize: 16, fontWeight: '700', color: '#1e293b', marginBottom: 8 },
+    recommendedCard: { backgroundColor: '#eff6ff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#bfdbfe', marginBottom: 8 },
+    recommendedEventTitle: { fontSize: 15, fontWeight: '700', color: '#1e3a8a', marginBottom: 4 },
+    recommendedEventMeta: { fontSize: 12, color: '#475569' },
+    modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+    modalOverlayBg: { ...StyleSheet.absoluteFillObject },
+    modalCard: { width: '90%', backgroundColor: '#fff', borderRadius: 18, padding: 20, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, elevation: 12 },
+    modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14, color: '#111827' },
+    modalItem: { fontSize: 14, color: '#334155', marginBottom: 10 },
+    modalClose: { marginTop: 16, alignSelf: 'flex-end' },
+    modalCloseText: { color: '#1d4ed8', fontWeight: '700' },
 });
 
 const chipStyles = StyleSheet.create({

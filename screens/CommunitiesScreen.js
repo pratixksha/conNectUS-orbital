@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, TextInput, ActivityIndicator, Alert,
+  StyleSheet, TextInput, ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
+import { getCommunitiesMutualInfo } from '../lib/social';
 
 const CATEGORIES = ['All', 'Study', 'Sports', 'Music', 'Gaming', 'Food', 'Arts', 'Tech', 'Other'];
 const CATEGORY_COLORS = {
@@ -35,6 +36,7 @@ export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPr
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
+  const [mutualModalCommunity, setMutualModalCommunity] = useState(null);
 
   useEffect(() => { init(); }, []);
 
@@ -52,7 +54,13 @@ export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPr
       .order('created_at', { ascending: false });
 
     if (data) {
-      setCommunities(data);
+      const communityIds = data.map(c => c.id);
+      const mutualInfo = await getCommunitiesMutualInfo(uid, communityIds);
+      setCommunities(data.map(c => ({
+        ...c,
+        mutual_count: mutualInfo[c.id]?.count || 0,
+        mutual_names: mutualInfo[c.id]?.names || [],
+      })));
       const joined = new Set(
         data.filter(c => c.community_members.some(m => m.user_id === uid)).map(c => c.id)
       );
@@ -144,7 +152,17 @@ export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPr
             </View>
           </View>
           {community.description ? <Text style={styles.cardDesc} numberOfLines={1}>{community.description}</Text> : null}
-          <Text style={styles.cardMeta}>{community.member_count || 0} members</Text>
+          <View style={styles.cardMetaRow}>
+            <Text style={styles.cardMeta}>{community.member_count || 0} members</Text>
+            {community.mutual_count > 0 && (
+              <TouchableOpacity
+                style={styles.friendBadge}
+                onPress={(e) => { e.stopPropagation(); setMutualModalCommunity(community); }}
+              >
+                <Text style={styles.friendBadgeText}>{community.mutual_count} friend{community.mutual_count === 1 ? '' : 's'} here</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
         <View style={styles.cardActions}>
           {isCreator ? (
@@ -209,6 +227,27 @@ export default function CommunitiesScreen({ onBack, onCreatePress, onCommunityPr
           }
         </View>
       </ScrollView>
+
+      {mutualModalCommunity && (
+        <Modal visible transparent animationType="fade">
+          <View style={styles.modalOverlay}>
+            <TouchableOpacity style={styles.modalOverlayBg} onPress={() => setMutualModalCommunity(null)} />
+            <View style={styles.modalCard}>
+              <Text style={styles.modalTitle}>{mutualModalCommunity.name} friends here</Text>
+              {mutualModalCommunity.mutual_names?.length > 0 ? (
+                mutualModalCommunity.mutual_names.map((name, index) => (
+                  <Text key={index} style={styles.modalItem}>• {name}</Text>
+                ))
+              ) : (
+                <Text style={styles.modalItem}>No friends here yet.</Text>
+              )}
+              <TouchableOpacity style={styles.modalClose} onPress={() => setMutualModalCommunity(null)}>
+                <Text style={styles.modalCloseText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -236,12 +275,21 @@ const styles = StyleSheet.create({
   catTagText: { fontSize: 11, fontWeight: '600' },
   cardDesc: { fontSize: 12, color: '#64748b', marginTop: 2 },
   cardMeta: { fontSize: 11, color: '#94a3b8', marginTop: 3 },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  friendBadge: { backgroundColor: '#d1fae5', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  friendBadgeText: { fontSize: 11, fontWeight: '700', color: '#065f46' },
   cardActions: { marginLeft: 8 },
-  joinBtn: { backgroundColor: '#1d4ed8', borderRadius: 8, paddingHorizontal: 14, paddingVertical: 7 },
   leaveBtn: { backgroundColor: '#f1f5f9' },
   joinText: { color: '#fff', fontWeight: '600', fontSize: 13 },
   leaveText: { color: '#64748b' },
   deleteBtn: { padding: 6 },
   deleteText: { fontSize: 18 },
   empty: { color: '#94a3b8', fontSize: 14, textAlign: 'center', marginTop: 20 },
+  modalOverlay: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalOverlayBg: { ...StyleSheet.absoluteFillObject },
+  modalCard: { width: '90%', backgroundColor: '#fff', borderRadius: 18, padding: 20, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 16, elevation: 12 },
+  modalTitle: { fontSize: 16, fontWeight: '700', marginBottom: 14 },
+  modalItem: { fontSize: 14, color: '#334155', marginBottom: 10 },
+  modalClose: { marginTop: 16, alignSelf: 'flex-end' },
+  modalCloseText: { color: '#1d4ed8', fontWeight: '700' },
 });
