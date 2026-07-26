@@ -17,6 +17,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.amritaa.connectus",
+      "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyAvaFuYp7CtQVLmD6h6w4xCqXxDmCRtMPc"
