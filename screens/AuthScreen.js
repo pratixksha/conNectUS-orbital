@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { router } from 'expo-router';
+import { registerForPushNotifications } from '../lib/notifications';
 
 const INTERESTS = [
   'AI & Tech', 'Badminton', 'Startups', 'Supper runs',
@@ -142,7 +143,7 @@ export default function AuthScreen({ navigation = null }) {
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
       password: loginPw,
     });
@@ -150,8 +151,9 @@ export default function AuthScreen({ navigation = null }) {
     if (error) {
       Alert.alert('Login failed', error.message);
     } else {
-      //console.log('logged in!');
-      //router.push('/events');
+      if (data?.user?.id) {
+        registerForPushNotifications(data.user.id);
+      }
       router.replace('/home');
     }
   }
