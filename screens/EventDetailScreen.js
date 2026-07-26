@@ -66,13 +66,14 @@ export default function EventDetailScreen({ event, onBack }) {
     }
 
     async function handleSetReminder(minutes) {
-        const { error } = await scheduleReminder(event.id, userId, event.date, minutes);
-        if (error) {
-            Alert.alert('Could not set reminder', error.message);
-            return;
-        }
-        setReminderMinutes(minutes);
+    const { error } = await scheduleReminder(event.id, userId, event.date, minutes);
+    if (error) {
+        Alert.alert('Could not set reminder', error.message);
+        return;
     }
+    setReminderMinutes(minutes);
+    Alert.alert('Reminder set', `We'll notify you ${LEAD_OPTIONS.find(o => o.minutes === minutes).label.toLowerCase()}.`);
+}
 
     async function handleAddToCalendar() {
         try {
