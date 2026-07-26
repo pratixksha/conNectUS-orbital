@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { fetchEventAttendeesWithMutualFlag } from '../../lib/social';
 
 import { useLocalSearchParams, router } from 'expo-router';
 
@@ -21,6 +22,12 @@ export default function EventDetailScreen() {
         getUser();
     }, []);
 
+    useEffect(() => {
+        if (event && userId) {
+            fetchAttendees(event.id);
+        }
+    }, [event, userId]);
+
     async function fetchEvent() {
         const { data, error } = await supabase
             .from('events')
@@ -32,22 +39,22 @@ export default function EventDetailScreen() {
             Alert.alert('Error', error.message);
         } else {
             setEvent(data);
-            fetchAttendees(data.id);
         }
     }
 
     async function getUser() {
         const { data: { user } } = await supabase.auth.getUser();
         setUserId(user?.id ?? null);
-        if (user) checkSignup(user.id);
+        if (user) {
+            checkSignup(user.id);
+        } else if (event) {
+            setLoading(false);
+        }
     }
 
     async function fetchAttendees(eventId: string) {
-        const { data } = await supabase
-            .from('event_signups')
-            .select('user_id, profiles(full_name)')
-            .eq('event_id', eventId);
-        setAttendees(data || []);
+        const attendeesWithFlags = await fetchEventAttendeesWithMutualFlag(eventId, userId);
+        setAttendees(attendeesWithFlags || []);
         setLoading(false);
     }
 
@@ -108,8 +115,13 @@ export default function EventDetailScreen() {
                     <View style={styles.row}>
                         <Text style={styles.meta}>📍 {event.location}</Text>
                     </View>
-                    <View style={styles.row}>
+                    <View style={[styles.row, styles.rowInline]}>
                         <Text style={styles.meta}>👥 {attendees.length} signed up</Text>
+                        {attendees.filter(a => a.isFriend).length > 0 && (
+                          <View style={styles.mutualTag}>
+                            <Text style={styles.mutualTagText}>{attendees.filter(a => a.isFriend).length} friend{attendees.filter(a => a.isFriend).length === 1 ? '' : 's'} attending</Text>
+                          </View>
+                        )}
                     </View>
 
                     <Text style={styles.sectionHeader}>About</Text>
@@ -119,7 +131,14 @@ export default function EventDetailScreen() {
                         <>
                             <Text style={styles.sectionHeader}>Attendees</Text>
                             {attendees.map((a, i) => (
-                                <Text key={i} style={styles.attendee}>• {a.profiles?.full_name || 'NUS Student'}</Text>
+                                <View key={i} style={styles.attendeeRow}>
+                                    <Text style={styles.attendee}>• {a.profile?.full_name || 'NUS Student'}</Text>
+                                    {a.isFriend && (
+                                        <View style={styles.attendeeBadge}>
+                                            <Text style={styles.attendeeBadgeText}>friend</Text>
+                                        </View>
+                                    )}
+                                </View>
                             ))}
                         </>
                     )}
@@ -146,10 +165,17 @@ const styles = StyleSheet.create({
     content: { padding: 16 },
     title: { fontSize: 24, fontWeight: 'bold', marginBottom: 12 },
     row: { marginBottom: 6 },
+    rowInline: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
     meta: { fontSize: 14, color: '#444' },
+    metaInline: { marginLeft: 6 },
+    mutualTag: { backgroundColor: '#d1fae5', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+    mutualTagText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
     sectionHeader: { fontSize: 18, fontWeight: '600', marginTop: 20, marginBottom: 8 },
     desc: { fontSize: 14, color: '#555', lineHeight: 22 },
-    attendee: { fontSize: 14, color: '#555', marginBottom: 4 },
+    attendeeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
+    attendee: { fontSize: 14, color: '#343a40' },
+    attendeeBadge: { backgroundColor: '#d1fae5', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+    attendeeBadgeText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
     btn: { margin: 16, backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
     btnWithdraw: { backgroundColor: '#dc2626' },
     btnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
