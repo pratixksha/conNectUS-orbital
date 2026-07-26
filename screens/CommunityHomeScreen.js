@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
+import { fetchAcceptedFriendIds } from '../lib/social';
 
 const CATEGORY_COLORS = {
     Study: '#3b82f6', Sports: '#10b981', Music: '#8b5cf6',
@@ -31,6 +32,7 @@ export default function CommunityHomeScreen({ community, onBack }) {
     const [communityData, setCommunityData] = useState(community);
     const [posts, setPosts] = useState([]);
     const [members, setMembers] = useState([]);
+    const [friendMemberIds, setFriendMemberIds] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [replyText, setReplyText] = useState('');
     const [expandedPost, setExpandedPost] = useState(null);
@@ -51,7 +53,7 @@ export default function CommunityHomeScreen({ community, onBack }) {
         const { data: fresh } = await supabase
             .from('communities').select('*').eq('id', community.id).single();
         if (fresh) setCommunityData(fresh);
-        await Promise.all([fetchPosts(user.id), fetchMembers()]);
+        await Promise.all([fetchPosts(user.id), fetchMembers(user.id)]);
     }
 
     async function fetchPosts(uid) {
@@ -65,12 +67,19 @@ export default function CommunityHomeScreen({ community, onBack }) {
         setLoading(false);
     }
 
-    async function fetchMembers() {
+    async function fetchMembers(uid = userId) {
         const { data } = await supabase
             .from('community_members')
-            .select('profiles(full_name, avatar_url)')
+            .select('profiles(id, full_name, avatar_url)')
             .eq('community_id', community.id);
-        setMembers((data || []).map(m => m.profiles));
+
+        const list = (data || []).map(m => m.profiles).filter(Boolean);
+        setMembers(list);
+
+        if (uid) {
+            const friendIds = await fetchAcceptedFriendIds(uid);
+            setFriendMemberIds(friendIds);
+        }
     }
 
     async function pickPostImage() {
@@ -386,6 +395,11 @@ export default function CommunityHomeScreen({ community, onBack }) {
                                         <Text style={styles.memberAvatarText}>{m?.full_name?.[0] || '?'}</Text>
                                     </View>
                                     <Text style={styles.memberName}>{m?.full_name || 'Unknown'}</Text>
+                                    {m?.id && friendMemberIds.has(m.id) && (
+                                        <View style={styles.friendBadge}>
+                                            <Text style={styles.friendBadgeText}>friend</Text>
+                                        </View>
+                                    )}
                                 </View>
                             ))}
                         </ScrollView>
@@ -463,6 +477,8 @@ const styles = StyleSheet.create({
     memberAvatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#dbeafe', justifyContent: 'center', alignItems: 'center' },
     memberAvatarText: { fontSize: 16, fontWeight: '700', color: '#1d4ed8' },
     memberName: { fontSize: 15, fontWeight: '500', color: '#1e293b' },
+    friendBadge: { marginLeft: 'auto', backgroundColor: '#d1fae5', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 3 },
+    friendBadgeText: { color: '#065f46', fontSize: 12, fontWeight: '700' },
     postImage: {
         width: '100%',
         height: 220,

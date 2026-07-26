@@ -190,6 +190,42 @@ returns boolean as $$
   );
 $$ language sql security definer stable;
 
+drop function if exists get_mutual_friends(uuid, uuid);
+
+create or replace function get_mutual_friends(user_a uuid, user_b uuid)
+returns table (id uuid, full_name text, avatar_url text) as $$
+  with a_friends as (
+    select case
+      when requester_id = user_a then addressee_id
+      else requester_id
+    end as friend_id
+    from friendships
+    where status = 'accepted'
+      and (requester_id = user_a or addressee_id = user_a)
+  ),
+  b_friends as (
+    select case
+      when requester_id = user_b then addressee_id
+      else requester_id
+    end as friend_id
+    from friendships
+    where status = 'accepted'
+      and (requester_id = user_b or addressee_id = user_b)
+  ),
+  mutual_ids as (
+    select a.friend_id
+    from a_friends a
+    inner join b_friends b on a.friend_id = b.friend_id
+    where a.friend_id <> user_a and a.friend_id <> user_b
+  )
+  select p.id, p.full_name, p.avatar_url
+  from profiles p
+  inner join mutual_ids m on m.friend_id = p.id
+  order by p.full_name asc;
+$$ language sql security definer stable;
+
+grant execute on function get_mutual_friends(uuid, uuid) to authenticated;
+
 -- Conversations (1:1)
 create table if not exists conversations (
   id uuid default gen_random_uuid() primary key,

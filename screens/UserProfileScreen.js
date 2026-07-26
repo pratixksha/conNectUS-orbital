@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, ActivityIndicator, Alert,
+  ScrollView, ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -15,6 +15,7 @@ import {
   getCurrentUserId,
   canMessageUser,
   removeFriendship,
+  getMutualFriends,
 } from '../lib/social';
 
 export default function UserProfileScreen({
@@ -29,7 +30,10 @@ export default function UserProfileScreen({
   const [currentUserId, setCurrentUserId] = useState(null);
   const [friendship, setFriendship] = useState(initialFriendship);
   const [mutualCount, setMutualCount] = useState(0);
+  const [mutualFriends, setMutualFriends] = useState([]);
+  const [loadingMutualNames, setLoadingMutualNames] = useState(false);
   const [canMessage, setCanMessage] = useState(false);
+  const [showMutualsModal, setShowMutualsModal] = useState(false);
 
   useEffect(() => {
     loadProfile();
@@ -37,6 +41,9 @@ export default function UserProfileScreen({
 
   async function loadProfile() {
     setLoading(true);
+    setShowMutualsModal(false);
+    setLoadingMutualNames(false);
+    setMutualFriends([]);
     const me = await getCurrentUserId();
     setCurrentUserId(me);
 
@@ -61,6 +68,15 @@ export default function UserProfileScreen({
 
     const mutuals = await countMutualFriends(me, userId);
     setMutualCount(mutuals);
+
+    try {
+      const friends = await getMutualFriends(me, userId);
+      setMutualFriends(friends || []);
+    } catch (err) {
+      console.error('Error fetching mutual friends:', err);
+      setMutualFriends([]);
+    }
+
     setCanMessage(await canMessageUser(me, userId));
     setLoading(false);
   }
@@ -95,6 +111,22 @@ export default function UserProfileScreen({
       Alert.alert('Error', err.message);
     }
     setActionLoading(false);
+  }
+
+  async function handleOpenMutualsModal() {
+    if (mutualCount <= 0) return;
+
+    setShowMutualsModal(true);
+    setLoadingMutualNames(true);
+    try {
+      const friends = await getMutualFriends(currentUserId, userId);
+      setMutualFriends(friends || []);
+    } catch (err) {
+      console.error('Error refreshing mutual friends:', err);
+      setMutualFriends([]);
+    } finally {
+      setLoadingMutualNames(false);
+    }
   }
 
   function handleRemoveFriend() {
@@ -261,18 +293,61 @@ export default function UserProfileScreen({
             </View>
           </View>
 
-          {mutualCount > 0 && (
-            <View style={styles.mutualsRow}>
-              <View style={styles.mutualDots}>
-                <View style={[styles.mutualDot, { backgroundColor: '#3B82F6' }]} />
-                <View style={[styles.mutualDot, { backgroundColor: '#F97316', marginLeft: -8 }]} />
-                <View style={[styles.mutualDot, { backgroundColor: '#10B981', marginLeft: -8 }]} />
-              </View>
+          <TouchableOpacity
+            style={[styles.mutualsButton, mutualCount === 0 && styles.mutualsButtonDisabled]}
+            onPress={handleOpenMutualsModal}
+            activeOpacity={mutualCount > 0 ? 0.75 : 1}
+          >
+            <View style={styles.mutualAvatars}>
+              {mutualFriends.slice(0, 3).map((friend, idx) => (
+                <ProfileAvatar
+                  key={friend.id || `${friend.full_name}-${idx}`}
+                  profile={friend}
+                  size={30}
+                  style={[styles.mutualAvatar, idx > 0 ? styles.mutualAvatarOverlap : null]}
+                />
+              ))}
+              {mutualCount > 3 && (
+                <View style={[styles.mutualAvatar, styles.mutualExtraBadge, styles.mutualAvatarOverlap]}>
+                  <Text style={styles.mutualExtraText}>+{mutualCount - 3}</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
               <Text style={styles.mutualsText}>
-                {mutualCount}{mutualCount >= 3 ? '+' : ''} friends in common
+                {mutualCount} friend{mutualCount === 1 ? '' : 's'} in common
+              </Text>
+              <Text style={styles.mutualsHint}>
+                {mutualCount > 0 ? 'Tap to view mutual friends' : 'No mutual friends yet'}
               </Text>
             </View>
-          )}
+            {mutualCount > 0 && (
+              <Text style={styles.mutualsArrow}>›</Text>
+            )}
+          </TouchableOpacity>
+
+          <Modal visible={showMutualsModal} transparent animationType="fade" onRequestClose={() => setShowMutualsModal(false)}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Friends in Common</Text>
+                <ScrollView style={{ maxHeight: 300 }}>
+                  {loadingMutualNames ? (
+                    <ActivityIndicator color="#1d4ed8" style={{ marginVertical: 10 }} />
+                  ) : mutualFriends.length > 0 ? mutualFriends.map((friend, idx) => (
+                    <View key={friend.id || `${friend.full_name}-${idx}`} style={styles.modalFriendRow}>
+                      <ProfileAvatar profile={friend} size={28} />
+                      <Text style={styles.modalItem}>{friend.full_name || 'Unknown'}</Text>
+                    </View>
+                  )) : (
+                    <Text style={styles.modalItem}>No mutual friends found.</Text>
+                  )}
+                </ScrollView>
+                <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setShowMutualsModal(false)}>
+                  <Text style={styles.modalCloseText}>Close</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </ScrollView>
 
         <View style={styles.footer}>
@@ -318,10 +393,59 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, borderWidth: 1.5 },
   chipText: { fontSize: 13, fontWeight: '500' },
   emptyText: { fontSize: 14, color: '#aaa' },
+  mutualsButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginTop: 12, paddingVertical: 12, paddingHorizontal: 16, borderRadius: 16, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f8fafc' },
+  mutualsButtonDisabled: { opacity: 0.65 },
   mutualsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginTop: 8 },
-  mutualDots: { flexDirection: 'row' },
-  mutualDot: { width: 28, height: 28, borderRadius: 14, borderWidth: 2, borderColor: '#fff' },
-  mutualsText: { fontSize: 14, color: '#666' },
+  mutualAvatars: { flexDirection: 'row', minWidth: 36 },
+  mutualAvatar: { borderWidth: 2, borderColor: '#fff' },
+  mutualAvatarOverlap: { marginLeft: -8 },
+  mutualExtraBadge: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
+  mutualExtraText: { fontSize: 11, fontWeight: '700', color: '#334155' },
+  mutualsText: { fontSize: 14, fontWeight: '700', color: '#111' },
+  mutualsHint: { fontSize: 12, color: '#6b7280' },
+  mutualsArrow: { fontSize: 20, color: '#6b7280' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 10,
+  },
+  modalItem: {
+    fontSize: 15,
+    color: '#334155',
+  },
+  modalFriendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  modalCloseBtn: {
+    marginTop: 12,
+    backgroundColor: '#1d4ed8',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
   footer: {
     position: 'absolute',
     bottom: 0,
