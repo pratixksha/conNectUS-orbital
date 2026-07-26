@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1026577534055",
+    "project_id": "connect-us-72a87",
+    "storage_bucket": "connect-us-72a87.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1026577534055:android:a04c7e85609ab1828dd8c2",
+        "android_client_info": {
+          "package_name": "com.amritaa.connectus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDPNeZfjfHCMUw-j0iGRTvDeDSHdl5nMYw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
